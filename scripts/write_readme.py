@@ -76,7 +76,7 @@ Logs retain training loss, training metrics, validation loss, accuracy, precisio
 
 After choosing the checkpoint, examine every distinct validation probability boundary plus 0, 0.5 and 1. Select maximum precision subject to **defective recall ≥95%**; ties use F1 then the highest threshold. The selected threshold is **{threshold["selected_threshold"]:.8f}**, with validation precision **{threshold["metrics"]["precision"]:.2%}**, recall **{threshold["metrics"]["recall"]:.2%}** and F1 **{threshold["metrics"]["f1"]:.2%}**.
 
-A false negative may ship a defective product to a customer. A false positive may unnecessarily reject a good item or trigger manual review. The 95% target is a predeclared QC preference, not a production cost optimum. With only 49 validation defects, recall estimates are coarse. The threshold is never tuned on test labels and probability-based confidence is not calibrated certainty. [Complete threshold sweep and validation predictions](reports/ksdd2/threshold_selection.json).
+A false negative may ship a defective product to a customer. A false positive may unnecessarily reject a good item or trigger manual review. The 95% target is a predeclared QC preference, not a production cost optimum. With only 49 validation defects, recall changes in steps of 2.04 percentage points; the 95% target requires at least 47 correct detections (95.92%). The threshold is never tuned on test labels and probability-based confidence is not calibrated certainty. [Complete threshold sweep and validation predictions](reports/ksdd2/threshold_selection.json).
 
 ## Final untouched official test results
 
@@ -115,15 +115,16 @@ FastAPI validates multipart bodies before parsing and limits image uploads to 8 
 
 ## Setup and complete reproduction
 
-Python 3.12. The verified run used {latency["platform"]}, {latency["processor"]} (Intel Core i5-13420H), PyTorch {latency["torch"]}. Install CPU wheels if GPU support is unnecessary. Run in the repository root (PowerShell):
+Python 3.12. CPU deployment measurements used {latency["platform"]}, {latency["processor"]} (Intel Core i5-13420H), PyTorch {latency["torch"]}. Training used {config.get("gpu_name") or "CPU"} with PyTorch {config.get("torch_version", latency["torch"])}. The CUDA wheel step follows [PyTorch's official installation index](https://pytorch.org/get-started/locally/); omit it and use `--device cpu` on a CPU-only machine. Run in the repository root (PowerShell):
 
 ```powershell
 python -m venv .venv
 .\\.venv\\Scripts\\Activate.ps1
 python -m pip install -r requirements-dev.txt -c constraints.txt
+python -m pip install --no-deps torch==2.14.0+cu130 torchvision==0.29.0+cu130 --index-url https://download.pytorch.org/whl/cu130
 python -m scripts.download_ksdd2
 python -m src.ksdd2
-python -m src.train --data data/KolektorSDD2 --manifest reports/ksdd2/splits.csv --output artifacts/reproduced --epochs 10 --freeze-epochs 1 --backbone-mode last-block --batch-size 4 --lr 0.001 --patience 3 --target-recall 0.95 --seed 42 --threads 4 --device cpu
+python -m src.train --data data/KolektorSDD2 --manifest reports/ksdd2/splits.csv --output artifacts/reproduced --epochs 10 --freeze-epochs 1 --backbone-mode last-block --batch-size {config["batch_size"]} --lr 0.001 --patience 3 --target-recall 0.95 --seed 42 --threads 4 --device {config["device_used"]}
 python -m src.evaluate --data data/KolektorSDD2 --manifest reports/ksdd2/splits.csv --checkpoint artifacts/reproduced/best.pt --threads 4
 python -m src.error_analysis --data data/KolektorSDD2 --run artifacts/reproduced
 python -m src.export_onnx --checkpoint artifacts/reproduced/best.pt --samples data/KolektorSDD2/train/10000.png data/KolektorSDD2/train/10021.png

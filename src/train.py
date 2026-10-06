@@ -79,6 +79,8 @@ def train(args: argparse.Namespace) -> None:
             "class_weights": weights.tolist(),
             "manifest_sha256": file_hash(args.manifest),
             "initialization": "ImageNet1K_V1",
+            "torch_version": str(torch.__version__),
+            "gpu_name": torch.cuda.get_device_name(0) if device == "cuda" else None,
         }
     )
     write_json(args.output / "config.json", config)
