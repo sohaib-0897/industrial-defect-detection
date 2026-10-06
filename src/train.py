@@ -18,10 +18,16 @@ LOG = logging.getLogger(__name__)
 
 
 def loader(
-    rows: list[dict], root: Path, batch_size: int, training: bool = False, workers: int = 0, seed: int = 42
+    rows: list[dict],
+    root: Path,
+    batch_size: int,
+    training: bool = False,
+    workers: int = 0,
+    seed: int = 42,
+    rotation_degrees: float = 0,
 ) -> DataLoader:
     return DataLoader(
-        InspectionDataset(rows, root, training),
+        InspectionDataset(rows, root, training, rotation_degrees),
         batch_size=batch_size,
         shuffle=training,
         num_workers=workers,
@@ -64,7 +70,7 @@ def train(args: argparse.Namespace) -> None:
     rows = load_manifest(args.manifest, args.data)
     train_rows = [r for r in rows if r["split"] == "train"]
     val_rows = [r for r in rows if r["split"] == "val"]
-    train_batches = loader(train_rows, args.data, args.batch_size, True, args.workers, args.seed)
+    train_batches = loader(train_rows, args.data, args.batch_size, True, args.workers, args.seed, args.rotation_degrees)
     val_batches = loader(val_rows, args.data, args.batch_size, workers=args.workers)
     counts = np.bincount([CLASS_NAMES.index(r["label"]) for r in train_rows], minlength=2)
     imbalance_ratio = float(counts.max() / counts.min())
@@ -197,6 +203,9 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--freeze-epochs", type=int, default=2)
     parser.add_argument("--backbone-mode", choices=["all", "last-block"], default="all")
+    parser.add_argument(
+        "--rotation-degrees", type=float, default=0, help="Optional expanded rotation; final KSDD2 run uses 0"
+    )
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--patience", type=int, default=5)

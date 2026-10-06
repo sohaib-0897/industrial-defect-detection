@@ -54,7 +54,7 @@ Full observed dimensions, annotation details and duplicate evidence: [dataset au
 
 Use aspect-preserving bilinear resize with padding to **224 pixels wide × 640 high**. Keep the complete frame; no square squash or crop. Padding uses approximately the ImageNet mean RGB, followed by ImageNet normalization. Typical images retain almost their original resolution. Downsampling can still weaken extremely small defects. Validation, test and both inference backends share deterministic preprocessing, enforced by checkpoint metadata.
 
-Training augmentation: **±2° rotation with `expand=True`** followed by padding, and **±10% brightness/contrast jitter**. The expanded canvas preserves rotated edge content. No flips, random crop, blur, erasing or artificial defects. Orientation plausibility was not assumed.
+Final training augmentation: **±10% brightness/contrast jitter**, followed by deterministic full-frame padding. No flips, rotation, random crop, blur, erasing or artificial defects. A validation-only pilot using ±2° expanded rotations introduced conspicuous gray padding changes and poor early operating-point behavior. I inspected the transformed training images and compared a conservative photometric-only run before touching the test set; the experiment report records the validation evidence. Orientation plausibility was not assumed.
 
 **ImageNet1K_V1-pretrained ResNet18**, with a two-output classification head, provides a lightweight, CPU-deployable baseline for only 197 training positives. No architecture search was performed. Train the head for one epoch; then unfreeze `layer4` and the head while retaining earlier pretrained filters. BatchNorm running statistics stay fixed. This limits adaptation and CPU cost on a small dataset; `--backbone-mode all` supports full fine-tuning for a future validation-controlled experiment.
 
@@ -124,7 +124,7 @@ python -m pip install -r requirements-dev.txt -c constraints.txt
 python -m pip install --no-deps torch==2.14.0+cu130 torchvision==0.29.0+cu130 --index-url https://download.pytorch.org/whl/cu130
 python -m scripts.download_ksdd2
 python -m src.ksdd2
-python -m src.train --data data/KolektorSDD2 --manifest reports/ksdd2/splits.csv --output artifacts/reproduced --epochs 10 --freeze-epochs 1 --backbone-mode last-block --batch-size {config["batch_size"]} --lr 0.001 --patience 3 --target-recall 0.95 --seed 42 --threads 4 --device {config["device_used"]}
+python -m src.train --data data/KolektorSDD2 --manifest reports/ksdd2/splits.csv --output artifacts/reproduced --epochs 10 --freeze-epochs 1 --backbone-mode last-block --rotation-degrees 0 --batch-size {config["batch_size"]} --lr 0.001 --patience 3 --target-recall 0.95 --seed 42 --threads 4 --device {config["device_used"]}
 python -m src.evaluate --data data/KolektorSDD2 --manifest reports/ksdd2/splits.csv --checkpoint artifacts/reproduced/best.pt --threads 4
 python -m src.error_analysis --data data/KolektorSDD2 --run artifacts/reproduced
 python -m src.export_onnx --checkpoint artifacts/reproduced/best.pt --samples data/KolektorSDD2/train/10000.png data/KolektorSDD2/train/10021.png

@@ -32,16 +32,15 @@ def letterbox(image: Image.Image) -> Image.Image:
     return ImageOps.pad(image, (224, 640), method=Image.Resampling.BILINEAR, color=(124, 116, 104))
 
 
-def preprocessing(training: bool = False, contract: str = PREPROCESSING) -> transforms.Compose:
+def preprocessing(
+    training: bool = False, contract: str = PREPROCESSING, rotation_degrees: float = 0
+) -> transforms.Compose:
     steps = []
     if training:
         # Full-frame resize; no crop, flips, blur, or erasing that could remove defects.
-        steps.extend(
-            [
-                transforms.RandomRotation(degrees=2, expand=True, fill=(124, 116, 104)),
-                transforms.ColorJitter(brightness=0.10, contrast=0.10),
-            ]
-        )
+        if rotation_degrees:
+            steps.append(transforms.RandomRotation(degrees=rotation_degrees, expand=True, fill=(124, 116, 104)))
+        steps.append(transforms.ColorJitter(brightness=0.10, contrast=0.10))
     if contract == PREPROCESSING:
         steps.append(transforms.Lambda(letterbox))
     elif contract == "letterbox224-imagenet-v1":
@@ -83,9 +82,9 @@ def load_manifest(path: Path, root: Path, verify: bool = True) -> list[dict]:
 
 
 class InspectionDataset(Dataset):
-    def __init__(self, rows: list[dict], root: Path, training: bool = False):
+    def __init__(self, rows: list[dict], root: Path, training: bool = False, rotation_degrees: float = 0):
         self.rows, self.root = rows, root
-        self.transform = preprocessing(training)
+        self.transform = preprocessing(training, rotation_degrees=rotation_degrees)
 
     def __len__(self) -> int:
         return len(self.rows)
