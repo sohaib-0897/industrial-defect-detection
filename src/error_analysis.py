@@ -20,6 +20,12 @@ def analyze(data: Path, run: Path, limit: int = 6) -> None:
         image = read_image(data / row["path"])
         gray = image.convert("L")
         statistics = ImageStat.Stat(gray)
+        mask_path = (data / row["path"]).with_name(Path(row["path"]).stem + "_GT.png")
+        annotation_pixels, annotation_bbox = None, None
+        if mask_path.exists():
+            with Image.open(mask_path) as mask:
+                annotation_pixels = mask.histogram()[255]
+                annotation_bbox = mask.getbbox()
         errors.append(
             {
                 **row,
@@ -28,6 +34,8 @@ def analyze(data: Path, run: Path, limit: int = 6) -> None:
                 "contrast_std": statistics.stddev[0],
                 "width": image.width,
                 "height": image.height,
+                "annotation_pixels": annotation_pixels,
+                "annotation_bbox": annotation_bbox,
                 "review_notes": "",
             }
         )
