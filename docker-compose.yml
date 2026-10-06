@@ -1,0 +1,13 @@
+services:
+  detector:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      MODEL_PATH: /app/artifacts/run-001/best.pt
+      INFERENCE_BACKEND: pytorch
+      INFERENCE_THREADS: "2"
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m
+    restart: unless-stopped

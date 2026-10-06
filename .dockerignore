@@ -1,0 +1,13 @@
+*
+!requirements.txt
+!constraints.txt
+!src/
+!src/**
+!app/
+!app/**
+!artifacts/
+!artifacts/run-001/
+!artifacts/run-001/best.pt
+!artifacts/run-001/best.onnx
+!artifacts/run-001/best.json
+**/__pycache__
