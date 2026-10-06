@@ -37,7 +37,7 @@ def predict(
     model.eval()
     labels, probabilities, total_loss, loss_denominator = [], [], 0.0, 0.0
     for images, target in batches:
-        logits = model(images.to(device))
+        logits = model(images.to(device, memory_format=torch.channels_last))
         if criterion is not None:
             denominator = (
                 float(criterion.weight[target.to(device)].sum()) if criterion.weight is not None else len(target)
@@ -82,7 +82,7 @@ def train(args: argparse.Namespace) -> None:
         }
     )
     write_json(args.output / "config.json", config)
-    model = build_model(pretrained=True).to(device)
+    model = build_model(pretrained=True).to(device, memory_format=torch.channels_last)
     optimizer, scheduler = None, None
     best_f1, best_loss, stale = -1.0, float("inf"), 0
     checkpoint_path = args.output / "best.pt"
@@ -91,12 +91,16 @@ def train(args: argparse.Namespace) -> None:
         frozen = epoch < args.freeze_epochs
         if epoch == 0 or epoch == args.freeze_epochs:
             for name, parameter in model.named_parameters():
-                parameter.requires_grad = not frozen or name.startswith("fc.")
+                parameter.requires_grad = name.startswith("fc.") or (
+                    not frozen and (args.backbone_mode == "all" or name.startswith("layer4."))
+                )
             groups = [{"params": model.fc.parameters(), "lr": args.lr}]
             if not frozen:
                 groups.append(
                     {
-                        "params": [p for name, p in model.named_parameters() if not name.startswith("fc.")],
+                        "params": [
+                            p for name, p in model.named_parameters() if p.requires_grad and not name.startswith("fc.")
+                        ],
                         "lr": args.lr * 0.1,
                     }
                 )
@@ -112,7 +116,7 @@ def train(args: argparse.Namespace) -> None:
         train_labels, train_probabilities = [], []
         for images, target in train_batches:
             optimizer.zero_grad(set_to_none=True)
-            logits = model(images.to(device))
+            logits = model(images.to(device, memory_format=torch.channels_last))
             loss = criterion(logits, target.to(device))
             loss.backward()
             optimizer.step()
@@ -190,6 +194,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=Path("artifacts/run-001"))
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--freeze-epochs", type=int, default=2)
+    parser.add_argument("--backbone-mode", choices=["all", "last-block"], default="all")
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--patience", type=int, default=5)

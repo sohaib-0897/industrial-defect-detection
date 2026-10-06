@@ -147,6 +147,14 @@ def audit(root: Path, output: Path, seed: int = 42, check_counts: bool = True) -
             p.relative_to(root).as_posix() for p in sorted(root.rglob("*")) if p.is_file() and p.suffix != ".png"
         ],
         "manifest_sha256": file_hash(output / "splits.csv"),
+        "training_defect_pixel_percentiles": {
+            str(q): float(
+                np.percentile(
+                    [r["defect_pixels"] for r in rows if r["split"] == "train" and r["label"] == "defective"], q
+                )
+            )
+            for q in (0, 25, 50, 75, 100)
+        },
     }
     write_json(output / "dataset_analysis.json", report)
     names = ["train", "val", "test"]

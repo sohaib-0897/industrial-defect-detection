@@ -670,5 +670,12 @@
     "split_weakly_246.pyb",
     "split_weakly_53.pyb"
   ],
-  "manifest_sha256": "655282b430be9d48bbc4f39fa41526b2fdea704f77c43968c52322dfd00b997f"
+  "manifest_sha256": "655282b430be9d48bbc4f39fa41526b2fdea704f77c43968c52322dfd00b997f",
+  "training_defect_pixel_percentiles": {
+    "0": 23.0,
+    "25": 988.0,
+    "50": 2273.0,
+    "75": 5103.0,
+    "100": 43011.0
+  }
 }
