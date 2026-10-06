@@ -16,10 +16,11 @@ from src.model import load_checkpoint
 
 class Predictor:
     def __init__(self, settings: Settings):
+        # Tensor conversion/normalization use PyTorch for both inference backends.
+        torch.set_num_threads(settings.threads)
         self.backend = settings.backend
         self.lock = threading.Lock()
         if settings.backend == "pytorch":
-            torch.set_num_threads(settings.threads)
             self.model, metadata = load_checkpoint(settings.model_path)
         else:
             import onnxruntime as ort

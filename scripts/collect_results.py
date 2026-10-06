@@ -29,6 +29,22 @@ def collect(run: Path, output: Path) -> None:
     evaluation = json.loads((run / "evaluation.json").read_text(encoding="utf-8"))
     if evaluation.get("status") != "complete":
         raise ValueError("Only completed real evaluation evidence may be published")
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    selection = json.loads((run / "threshold_selection.json").read_text(encoding="utf-8"))
+    for name in ("precision", "recall", "f1"):
+        plt.plot([r["threshold"] for r in selection["tradeoff"]], [r[name] for r in selection["tradeoff"]], label=name)
+    plt.axvline(selection["selected_threshold"], color="black", linestyle="--", label="selected on validation")
+    plt.axhline(selection["target_recall"], color="gray", linestyle=":", label="recall target")
+    plt.xlabel("Defective probability threshold")
+    plt.ylabel("Validation metric")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(output / "threshold_tradeoff.png", dpi=150)
+    plt.close()
 
 
 if __name__ == "__main__":
