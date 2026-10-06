@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+import onnxruntime as ort
 import torch
 
 from app.config import Settings
@@ -20,6 +21,7 @@ def benchmark(checkpoint: Path, sample: Path, repeats: int = 50, warmup: int = 1
         "platform": platform.platform(),
         "processor": platform.processor(),
         "torch": str(torch.__version__),
+        "onnxruntime": ort.__version__,
         "threads": threads,
         "batch_size": 1,
         "repeats": repeats,
