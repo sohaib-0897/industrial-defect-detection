@@ -45,6 +45,31 @@ def collect(run: Path, output: Path) -> None:
     plt.tight_layout()
     plt.savefig(output / "threshold_tradeoff.png", dpi=150)
     plt.close()
+    pilot = run.parent / "rotation-pilot" / "history.json"
+    if pilot.exists():
+        from src.common import write_json
+
+        pilot_history = json.loads(pilot.read_text(encoding="utf-8"))
+        final_history = json.loads((run / "history.json").read_text(encoding="utf-8"))
+        matched = [
+            {
+                "epoch": old["epoch"],
+                "rotation_validation_f1_at_0_5": old["f1"],
+                "photometric_validation_f1_at_0_5": new["f1"],
+            }
+            for old, new in zip(pilot_history, final_history)
+        ]
+        write_json(
+            output / "augmentation_review.json",
+            {
+                "selection_data": "validation only; official test not evaluated in either pilot",
+                "same_settings": "seed 42, official training split, ResNet18, batch 16, weighted CE, stage schedule and learning rates",
+                "pilot": "expanded +/-2 degree rotation + +/-10% photometric jitter; stopped after 4 completed epochs for ablation",
+                "final": "photometric jitter only; no geometric augmentation",
+                "matched_epoch_comparison": matched,
+                "interpretation": "Rotated training images visibly gain gray borders; improved validation behavior supports removing rotation. This is not a causal proof or a repeated-seed study.",
+            },
+        )
 
 
 if __name__ == "__main__":

@@ -37,6 +37,18 @@ def test_grayscale_rgba_and_invalid():
         read_image(b"not an image")
 
 
+def test_training_augmentation_preserves_edge_defect_cues():
+    image = Image.new("RGB", (230, 640), (30, 30, 30))
+    image.paste("red", (0, 0, 8, 640))
+    image.paste("blue", (222, 0, 230, 640))
+    torch.manual_seed(42)
+    transformed = preprocessing(training=True)(image)
+    assert transformed.shape == (3, 640, 224)
+    assert torch.isfinite(transformed).all()
+    assert transformed[0, 320, 2] > transformed[2, 320, 2]
+    assert transformed[2, 320, 221] > transformed[0, 320, 221]
+
+
 def test_mapping():
     assert CLASS_TO_INDEX == {"normal": 0, "defective": 1}
 
