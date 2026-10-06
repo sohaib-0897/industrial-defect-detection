@@ -56,6 +56,10 @@ def evaluate(data: Path, manifest: Path, checkpoint_path: Path, batch_size: int 
             }
         )
     write_json(output / "test_predictions.json", predictions)
+    write_json(output / "classification_report.json", result["per_class"])
+    tn, fp = result["confusion_matrix"][0]
+    fn, tp = result["confusion_matrix"][1]
+    result.update({"true_negatives": tn, "false_positives": fp, "false_negatives": fn, "true_positives": tp})
     display = ConfusionMatrixDisplay(np.asarray(result["confusion_matrix"]), display_labels=CLASS_NAMES)
     display.plot(cmap="Blues", values_format="d")
     plt.title("Held-out test set; rows=true, columns=predicted")

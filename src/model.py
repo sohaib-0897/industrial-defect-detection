@@ -5,6 +5,7 @@ from torch import nn
 from torchvision.models import ResNet18_Weights, resnet18
 
 from src.common import CLASS_NAMES
+from src.data import PREPROCESSING
 
 
 def build_model(pretrained: bool = True) -> nn.Module:
@@ -17,7 +18,7 @@ def load_checkpoint(path: Path, device: str = "cpu") -> tuple[nn.Module, dict]:
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
     if checkpoint["class_names"] != list(CLASS_NAMES) or checkpoint["architecture"] != "resnet18":
         raise ValueError("Unsupported architecture or class mapping in checkpoint")
-    if checkpoint["preprocessing"] != "letterbox224-imagenet-v1":
+    if checkpoint["preprocessing"] not in {PREPROCESSING, "letterbox224-imagenet-v1"}:
         raise ValueError("Unsupported preprocessing contract")
     model = build_model(pretrained=False)
     model.load_state_dict(checkpoint["state_dict"])

@@ -8,9 +8,8 @@ __pycache__/
 data/
 artifacts/**
 !artifacts/.gitkeep
-!artifacts/verification.json
-!artifacts/dataset_analysis.json
-!artifacts/dataset_analysis.md
+*.zip
+*.zip.part
 *.pt
 *.onnx
 *.log

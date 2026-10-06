@@ -10,7 +10,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 from src.common import CLASS_NAMES, configure_logging, file_hash, seed_everything, seed_worker, write_json
-from src.data import InspectionDataset, load_manifest
+from src.data import PREPROCESSING, InspectionDataset, load_manifest
 from src.metrics import metrics, select_threshold
 from src.model import build_model, load_checkpoint
 
@@ -35,14 +35,18 @@ def predict(
     model: nn.Module, batches: DataLoader, device: str, criterion: nn.Module | None = None
 ) -> tuple[np.ndarray, np.ndarray, float]:
     model.eval()
-    labels, probabilities, total_loss = [], [], 0.0
+    labels, probabilities, total_loss, loss_denominator = [], [], 0.0, 0.0
     for images, target in batches:
         logits = model(images.to(device))
         if criterion is not None:
-            total_loss += float(criterion(logits, target.to(device))) * len(target)
+            denominator = (
+                float(criterion.weight[target.to(device)].sum()) if criterion.weight is not None else len(target)
+            )
+            total_loss += float(criterion(logits, target.to(device))) * denominator
+            loss_denominator += denominator
         labels.extend(target.tolist())
         probabilities.extend(logits.softmax(dim=1)[:, 1].cpu().tolist())
-    return np.array(labels), np.array(probabilities), total_loss / len(batches.dataset)
+    return np.array(labels), np.array(probabilities), total_loss / max(loss_denominator, 1)
 
 
 def train(args: argparse.Namespace) -> None:
@@ -104,19 +108,26 @@ def train(args: argparse.Namespace) -> None:
         for module in model.modules():
             if isinstance(module, nn.BatchNorm2d):
                 module.eval()
-        total_loss = 0.0
+        total_loss, loss_denominator = 0.0, 0.0
+        train_labels, train_probabilities = [], []
         for images, target in train_batches:
             optimizer.zero_grad(set_to_none=True)
-            loss = criterion(model(images.to(device)), target.to(device))
+            logits = model(images.to(device))
+            loss = criterion(logits, target.to(device))
             loss.backward()
             optimizer.step()
-            total_loss += float(loss.detach()) * len(target)
+            denominator = float(criterion.weight[target.to(device)].sum())
+            total_loss += float(loss.detach()) * denominator
+            loss_denominator += denominator
+            train_labels.extend(target.tolist())
+            train_probabilities.extend(logits.detach().softmax(dim=1)[:, 1].cpu().tolist())
         labels, probabilities, val_loss = predict(model, val_batches, device, criterion)
         score = metrics(labels, probabilities, 0.5)
         record = {
             "epoch": epoch + 1,
             "frozen_backbone": frozen,
-            "train_loss": total_loss / len(train_rows),
+            "train_loss": total_loss / loss_denominator,
+            "train_metrics": metrics(np.array(train_labels), np.array(train_probabilities), 0.5),
             "val_loss": val_loss,
             **{k: score[k] for k in ("precision", "recall", "f1", "accuracy")},
             "learning_rates": [group["lr"] for group in optimizer.param_groups],
@@ -133,7 +144,7 @@ def train(args: argparse.Namespace) -> None:
                     "state_dict": model.state_dict(),
                     "architecture": "resnet18",
                     "class_names": list(CLASS_NAMES),
-                    "preprocessing": "letterbox224-imagenet-v1",
+                    "preprocessing": PREPROCESSING,
                     "threshold": 0.5,
                     "model_version": args.output.name,
                     "epoch": epoch + 1,

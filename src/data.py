@@ -12,6 +12,7 @@ from src.common import CLASS_TO_INDEX, file_hash
 
 MEAN = (0.485, 0.456, 0.406)
 STD = (0.229, 0.224, 0.225)
+PREPROCESSING = "letterbox224x640-imagenet-v2"
 Image.MAX_IMAGE_PIXELS = 20_000_000
 
 
@@ -28,19 +29,25 @@ def read_image(source: Path | bytes) -> Image.Image:
 
 
 def letterbox(image: Image.Image) -> Image.Image:
-    return ImageOps.pad(image, (224, 224), method=Image.Resampling.BILINEAR, color=(124, 116, 104))
+    return ImageOps.pad(image, (224, 640), method=Image.Resampling.BILINEAR, color=(124, 116, 104))
 
 
-def preprocessing(training: bool = False) -> transforms.Compose:
-    steps = [transforms.Lambda(letterbox)]
+def preprocessing(training: bool = False, contract: str = PREPROCESSING) -> transforms.Compose:
+    steps = []
     if training:
         # Full-frame resize; no crop, flips, blur, or erasing that could remove defects.
         steps.extend(
             [
-                transforms.RandomAffine(degrees=5, translate=(0.02, 0.02), fill=(124, 116, 104)),
+                transforms.RandomRotation(degrees=2, expand=True, fill=(124, 116, 104)),
                 transforms.ColorJitter(brightness=0.10, contrast=0.10),
             ]
         )
+    if contract == PREPROCESSING:
+        steps.append(transforms.Lambda(letterbox))
+    elif contract == "letterbox224-imagenet-v1":
+        steps.append(transforms.Lambda(lambda image: ImageOps.pad(image, (224, 224), color=(124, 116, 104))))
+    else:
+        raise ValueError("Unsupported preprocessing contract")
     steps.extend([transforms.ToTensor(), transforms.Normalize(MEAN, STD)])
     return transforms.Compose(steps)
 
@@ -65,6 +72,10 @@ def load_manifest(path: Path, root: Path, verify: bool = True) -> list[dict]:
             raise ValueError("Group leakage across splits")
         if verify and file_hash(target) != row["sha256"]:
             raise ValueError(f"Dataset changed: {row['path']}; regenerate audited splits")
+        if verify and row.get("mask"):
+            mask = (root / row["mask"]).resolve()
+            if not mask.is_relative_to(root.resolve()) or file_hash(mask) != row["mask_sha256"]:
+                raise ValueError(f"Dataset annotation changed: {row['path']}")
     for split in ("train", "val", "test"):
         if {r["label"] for r in rows if r["split"] == split} != set(CLASS_TO_INDEX):
             raise ValueError(f"{split} must contain both classes")

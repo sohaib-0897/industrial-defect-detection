@@ -9,7 +9,7 @@ from PIL import Image
 from app.config import Settings
 from app.schemas import Prediction
 from src.common import CLASS_NAMES, file_hash
-from src.data import preprocessing
+from src.data import PREPROCESSING, preprocessing
 from src.metrics import classify
 from src.model import load_checkpoint
 
@@ -17,7 +17,6 @@ from src.model import load_checkpoint
 class Predictor:
     def __init__(self, settings: Settings):
         self.backend = settings.backend
-        self.transform = preprocessing()
         self.lock = threading.Lock()
         if settings.backend == "pytorch":
             torch.set_num_threads(settings.threads)
@@ -28,7 +27,10 @@ class Predictor:
             metadata = json.loads(settings.model_path.with_suffix(".json").read_text(encoding="utf-8"))
             if metadata["onnx_sha256"] != file_hash(settings.model_path):
                 raise ValueError("ONNX model differs from verified export")
-            if metadata["class_names"] != list(CLASS_NAMES) or metadata["preprocessing"] != "letterbox224-imagenet-v1":
+            if metadata["class_names"] != list(CLASS_NAMES) or metadata["preprocessing"] not in {
+                PREPROCESSING,
+                "letterbox224-imagenet-v1",
+            }:
                 raise ValueError("Unsupported ONNX metadata")
             options = ort.SessionOptions()
             options.intra_op_num_threads = settings.threads
@@ -36,6 +38,7 @@ class Predictor:
             self.session = ort.InferenceSession(
                 str(settings.model_path), sess_options=options, providers=["CPUExecutionProvider"]
             )
+        self.transform = preprocessing(contract=metadata["preprocessing"])
         self.threshold, self.version = float(metadata["threshold"]), metadata["model_version"]
         if not 0 <= self.threshold <= 1:
             raise ValueError("Invalid decision threshold")

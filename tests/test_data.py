@@ -14,7 +14,7 @@ from src.data import load_manifest, preprocessing, read_image
 def test_preprocessing_is_deterministic_full_frame(image_bytes):
     image = read_image(image_bytes)
     first, second = preprocessing()(image), preprocessing()(image)
-    assert first.shape == (3, 224, 224)
+    assert first.shape == (3, 640, 224)
     assert torch.equal(first, second)
     assert torch.isfinite(first).all()
     # Wide input keeps both colored edge bands through letterboxing.
@@ -22,8 +22,8 @@ def test_preprocessing_is_deterministic_full_frame(image_bytes):
     edges.paste("red", (0, 0, 30, 100))
     edges.paste("blue", (370, 0, 400, 100))
     result = preprocessing()(edges)
-    assert result[0, 112, 3] > result[2, 112, 3]
-    assert result[2, 112, 220] > result[0, 112, 220]
+    assert result[0, 320, 3] > result[2, 320, 3]
+    assert result[2, 320, 220] > result[0, 320, 220]
 
 
 def test_grayscale_rgba_and_invalid():

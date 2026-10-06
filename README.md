@@ -1,5 +1,7 @@
 # Manufacturing visual defect detection
 
+The assessment specification stated that a dataset would be provided, but no dataset was included in the materials available to me. I contacted the recruitment team requesting access but did not receive the dataset within the submission window. To demonstrate the complete solution, I used the publicly available Kolektor Surface-Defect Dataset 2 (KSDD2), a real industrial surface-inspection dataset. The training and inference pipeline is dataset-agnostic and can be retrained on the intended assessment dataset without architectural changes.
+
 Binary inspection: `normal` (index 0) versus `defective` (index 1). The submission implements an auditable training pipeline and a CPU FastAPI service with PyTorch and ONNX Runtime backends.
 
 **Assessment status (rechecked 2026-10-04):** the real assessment dataset could not be located in the repository or accessible local locations searched, including common user folders, temporary upload locations and ZIP contents. The repository contains only previously generated synthetic fixtures and plots. Real dataset statistics, manufacturing metrics, operating threshold and failure patterns remain blocked. Historical smoke results are isolated in [smoke-only verification](docs/smoke_verification.md) and must not be presented as assessment results. See [dataset audit](artifacts/dataset_analysis.md) and [verification report](artifacts/verification.json).
