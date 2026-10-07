@@ -1,26 +1,40 @@
-# Real assessment verification status
+# Executed KSDD2 assessment verification
 
-Rechecked 2026-10-04. The real dataset was not located in the repository or accessible local locations searched. The repository contains only 160 SYNTHETIC fixture images and four generated plots. No real-data training, threshold selection or test evaluation was run, so the real test set has not been consumed.
+This supersedes the historical synthetic-only report. Evidence is under [reports/ksdd2](../reports/ksdd2/).
 
-| Check | Current result |
+| Check | Executed result |
 |---|---|
-| Dataset discovery | Blocked: no identifiable manufacturing assessment dataset found |
-| Real split and class weights | Not determined |
-| Real model training / threshold | Not run |
-| Real test metrics / confusion matrix / FP / FN | Not measured |
-| Real image error analysis | Not performed |
-| Real ONNX export / parity | Not run |
-| Real PyTorch / ONNX CPU benchmark | Not measured |
-| Real API predictions | Blocked: artifacts/run-001/best.pt does not exist |
-| Unit/integration tests | 14 passed, zero failures/errors; use explicitly synthetic test fixtures |
-| Ruff lint and format | Passed |
-| Docker Compose configuration | Passed |
-| Docker build/start | Not run: Docker engine named pipe unavailable |
+| Official download / extraction | Passed; real official ZIP, canonical RGB PNG images and annotation masks |
+| Dataset audit | 3,335 images; no unreadable canonical images/masks; verified archive copy excluded; counts match official source |
+| Preserved test / stratified training subdivision | 1,864 training, 467 validation, untouched 1,004 official test; seed 42 and image/mask hashes recorded |
+| Real training | ImageNet ResNet18, weighted CE, CUDA RTX 4050; 8 epochs completed, epoch 5 selected using validation |
+| Threshold | Validation only; 0.1374264806509018; selected before test evaluation |
+| Official test evaluation | Completed once; generated JSON, classification report, per-image predictions and confusion matrix |
+| Error analysis | All 28 FP and 15 FN recorded; six examples of each visually reviewed; real contact sheets and post-test Grad-CAM saved |
+| PyTorch inference / real HTTP | Health 200; real normal and defective requests 200 with expected classes; corrupted image 422 |
+| ONNX export / inference | Checker and random/real-sample parity passed; probabilities/classes agree; live HTTP checks passed |
+| CPU benchmark | Batch 1, 2 threads, 10 warmups, 50 timed runs; medians 492.795 ms PyTorch / 310.008 ms ONNX |
+| pytest | 19 passed, 0 failures, 0 errors, 0 skipped; 92.111 seconds |
+| Ruff lint / format check | Both passed; machine-readable command outputs committed |
+| Docker Compose configuration / build | Both passed; CPU inference image built locally |
+| Container startup / real uploads | Health 200; normal and defective prediction requests 200; corrupted image 422 |
+| Container runtime | Engine 29.7.2; user detector; read-only filesystem True; No broken requirements found. |
+| README / artifact integrity | Commands exercised through their CLI or real HTTP helpers; all local links and checkpoint/manifest/ONNX hashes verified |
+| Repository hygiene | Raw images/ZIP, local environments, caches and large checkpoints excluded from Git |
 
-Discovery covered hidden/ignored repository files, Desktop, Downloads, Documents, OneDrive, source, local data/temp locations and other accessible profile folders. ZIP central directories in Desktop and Downloads were inspected. Unrelated PPE images, UI screenshots and software assets were excluded. No additional mounted drive letters were found. The extended user-profile scan had 22 access errors; dependency/cache/game/system folders were pruned where appropriate. This search cannot establish absence in inaccessible locations.
+The container was left running on port 8011 for demonstration. Use `docker compose down` to stop only this project's service. [Docker evidence](../reports/ksdd2/docker.json) includes image/container IDs and actual responses. The successful build used empty proxy arguments because this machine's inherited proxy was unreachable:
 
-Historical smoke measurements have been moved to [smoke_verification.md](smoke_verification.md), explicitly labeled synthetic. They are not manufacturing performance. The active machine-readable report is artifacts/verification.json; the old local smoke report is artifacts/smoke_verification.json and remains ignored by Git.
+```powershell
+docker compose build --build-arg HTTP_PROXY= --build-arg HTTPS_PROXY= --build-arg ALL_PROXY= --build-arg NO_PROXY=*
+docker compose up --no-build -d
+python -m scripts.check_docker
+python -m scripts.verify_submission
+```
 
-A TestClient/httpx deprecation warning did not fail tests. Previous global pip-check conflict with unrelated aisuite remains documented in the smoke archive; use the clean virtual environment in README.
+The complete training/evaluation pipeline ran on the local submission directory. README reproduction uses a fresh `artifacts/reproduced` directory; do not rerun final evaluation over `artifacts/run-001`, which intentionally refuses an existing test report. Real test inference has not been repeated for documentation checks; those verify stored predictions and hashes.
 
-To unblock: place the labeled assessment dataset under data/ or provide its exact accessible path. Inspect product/session metadata, then follow the audit, training, once-only evaluation, error analysis, export, benchmark and API commands in README. Start Docker Desktop before attempting the container build. Do not record a real-results demonstration until these steps complete.
+Pytest emitted three upstream deprecation warnings (TestClient and legacy ONNX export); no checks failed. The CPU deployment image has a clean `pip check`. Training CUDA wheels were installed in an isolated ignored environment rather than replacing the global CPU runtime.
+
+No Git remote or artifact release destination is configured, so there is no authorized destination to push commits or model weights. The full checkpoint and ONNX model remain available locally under `artifacts/run-001/`; README gives exact reproduction steps. Synthetic results remain clearly labeled only in [the historical software smoke archive](smoke_verification.md).
+
+The measured validation recall target did not fully generalize to test data. Test review triggered no retraining, augmentation adjustment or threshold change. Independent factory batches and a new holdout are required before further model selection or production acceptance.

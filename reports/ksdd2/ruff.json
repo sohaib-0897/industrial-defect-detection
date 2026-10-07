@@ -1,0 +1,12 @@
+[
+  {
+    "command": "python -m ruff check .",
+    "exit_code": 0,
+    "output": "All checks passed!"
+  },
+  {
+    "command": "python -m ruff format --check .",
+    "exit_code": 0,
+    "output": "45 files already formatted"
+  }
+]

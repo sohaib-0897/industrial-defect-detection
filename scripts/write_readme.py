@@ -18,6 +18,9 @@ def build() -> None:
     sizes = [tuple(map(int, size.split("x"))) for size in dataset["dimensions_width_x_height"]]
     pt, ort = latency["backends"]["pytorch"], latency["backends"]["onnx"]
     review = (root / "errors/review.md").read_text(encoding="utf-8")
+    review = review.replace("(false_positive.jpg)", "(reports/ksdd2/errors/false_positive.jpg)")
+    review = review.replace("(false_negative.jpg)", "(reports/ksdd2/errors/false_negative.jpg)")
+    architecture = Path("docs/architecture.md").read_text(encoding="utf-8").split("\n", 1)[1]
     contents = f"""# Manufacturing surface-defect classification
 
 The assessment specification stated that a dataset would be provided, but no dataset was included in the materials available to me. I contacted the recruitment team requesting access but did not receive the dataset within the submission window. To demonstrate the complete solution, I used the publicly available Kolektor Surface-Defect Dataset 2 (KSDD2), a real industrial surface-inspection dataset. The training and inference pipeline is dataset-agnostic and can be retrained on the intended assessment dataset without architectural changes.
@@ -54,7 +57,7 @@ Full observed dimensions, annotation details and duplicate evidence: [dataset au
 
 Use aspect-preserving bilinear resize with padding to **224 pixels wide × 640 high**. Keep the complete frame; no square squash or crop. Padding uses approximately the ImageNet mean RGB, followed by ImageNet normalization. Typical images retain almost their original resolution. Downsampling can still weaken extremely small defects. Validation, test and both inference backends share deterministic preprocessing, enforced by checkpoint metadata.
 
-Final training augmentation: **±10% brightness/contrast jitter**, followed by deterministic full-frame padding. No flips, rotation, random crop, blur, erasing or artificial defects. A validation-only pilot using ±2° expanded rotations introduced conspicuous gray padding changes and poor early operating-point behavior. I inspected the transformed training images and compared a conservative photometric-only run before touching the test set; the experiment report records the validation evidence. Orientation plausibility was not assumed.
+Final training augmentation: **±10% brightness/contrast jitter**, followed by deterministic full-frame padding. No flips, rotation, random crop, blur, erasing or artificial defects. A validation-only pilot using ±2° expanded rotations introduced conspicuous gray padding changes and poor early operating-point behavior. I inspected the transformed training images and compared a conservative photometric-only run before touching the test set; the [experiment report](reports/ksdd2/augmentation_review.json) records the validation evidence. Orientation plausibility was not assumed.
 
 **ImageNet1K_V1-pretrained ResNet18**, with a two-output classification head, provides a lightweight, CPU-deployable baseline for only 197 training positives. No architecture search was performed. Train the head for one epoch; then unfreeze the backbone and head, using a ten-times lower backbone learning rate. BatchNorm running statistics stay fixed. A final-stage-only pilot had a poor high-recall operating point; the full-backbone option was assessed using validation data before final test evaluation. No test observations informed this decision.
 
@@ -78,6 +81,8 @@ After choosing the checkpoint, examine every distinct validation probability bou
 
 A false negative may ship a defective product to a customer. A false positive may unnecessarily reject a good item or trigger manual review. The 95% target is a predeclared QC preference, not a production cost optimum. With only 49 validation defects, recall changes in steps of 2.04 percentage points; the 95% target requires at least 47 correct detections (95.92%). The threshold is never tuned on test labels and probability-based confidence is not calibrated certainty. [Complete threshold sweep and validation predictions](reports/ksdd2/threshold_selection.json).
 
+![Validation threshold tradeoff](reports/ksdd2/threshold_tradeoff.png)
+
 ## Final untouched official test results
 
 One final test evaluation after checkpoint and threshold selection:
@@ -99,6 +104,8 @@ Confusion matrix (rows = ground truth; columns = prediction, order normal/defect
 
 [Generated metrics and hashes](reports/ksdd2/evaluation.json) · [classification report](reports/ksdd2/classification_report.json) · [every image prediction](reports/ksdd2/test_predictions.json). These files are generated from model outputs; quality metrics are not manually edited.
 
+The validation recall target did **not** generalize to the official test: recall fell from {threshold["metrics"]["recall"]:.2%} to {result["recall"]:.2%}. Fifteen of 110 defective test images were missed. This operating point is a measured baseline, not a production acceptance guarantee; it was retained without test-driven tuning.
+
 ## Actual error review
 
 {review}
@@ -107,7 +114,7 @@ Error records contain filename, ground truth, prediction, defective probability 
 
 ## Architecture and API
 
-[Training and inference Mermaid diagrams](docs/architecture.md) show dataset audit → official separation → stratified training/validation → augmentation → ResNet18 transfer learning → validation threshold → untouched test → checkpoint → ONNX.
+{architecture}
 
 FastAPI validates multipart bodies before parsing and limits image uploads to 8 MiB. It checks supported image types, decoding, single frames and pixel limits. One model is loaded at startup. CPU inference is serialized per worker; use one uvicorn worker to avoid loading multiple copies. Structured logs record prediction outputs without retaining uploaded images.
 
@@ -177,7 +184,7 @@ python -m ruff check .
 python -m ruff format --check .
 ```
 
-Docker uses CPU wheels, a non-root user, read-only Compose filesystem and readiness health check. Only required model artifacts enter the build context; data and training caches stay outside the image. [Executed verification and exact Docker status](docs/verification.md). Tests cover preprocessing, mask-derived classes, official test preservation, threshold boundaries, model outputs, API readiness, real HTTP examples, invalid/oversized/corrupt uploads and ONNX metadata/parity. Synthetic unit fixtures test software behavior only.
+Docker uses CPU wheels, a non-root user, read-only Compose filesystem and readiness health check. Only required model artifacts enter the build context; data and training caches stay outside the image. [Executed verification and exact Docker status](docs/verification.md). Tests cover preprocessing, mask-derived classes, official test preservation, threshold boundaries, model outputs, API readiness, invalid/oversized/corrupt uploads and ONNX metadata/parity. Separate live HTTP checks exercise real normal/defective images through both backends. Synthetic unit fixtures test software behavior only.
 
 ## Limits and next steps
 

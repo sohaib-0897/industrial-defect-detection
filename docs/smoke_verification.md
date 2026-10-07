@@ -1,5 +1,7 @@
 # Measured verification — synthetic fixtures only
 
+Historical software smoke evidence only. Current real KSDD2 assessment results are in [README](../README.md) and [verification](verification.md). The historical missing-dataset and Docker status below no longer describe the current submission.
+
 Recorded on 2026-10-04, Python 3.12.9, Windows 11, Intel64 Family 6 Model 186 Stepping 2, PyTorch 2.14.0 CPU, torchvision 0.29.0. CUDA was unavailable. The initial workspace had no files or dataset. No manufacturing quality result is claimed.
 
 ## What ran

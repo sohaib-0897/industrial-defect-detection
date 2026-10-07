@@ -1,176 +1,222 @@
-# Manufacturing visual defect detection
+# Manufacturing surface-defect classification
 
 The assessment specification stated that a dataset would be provided, but no dataset was included in the materials available to me. I contacted the recruitment team requesting access but did not receive the dataset within the submission window. To demonstrate the complete solution, I used the publicly available Kolektor Surface-Defect Dataset 2 (KSDD2), a real industrial surface-inspection dataset. The training and inference pipeline is dataset-agnostic and can be retrained on the intended assessment dataset without architectural changes.
 
-Binary inspection: `normal` (index 0) versus `defective` (index 1). The submission implements an auditable training pipeline and a CPU FastAPI service with PyTorch and ONNX Runtime backends.
+Classify an inspection image as **normal** (0, no visible defect) or **defective** (1, visible defect). Defective is the positive class everywhere. This submission includes a trained transfer-learning model, audited splits, generated evaluation evidence, FastAPI inference, verified ONNX export, and CPU measurements. Synthetic fixtures are used only for software tests; they contribute no assessment metrics below.
 
-**Assessment status (rechecked 2026-10-04):** the real assessment dataset could not be located in the repository or accessible local locations searched, including common user folders, temporary upload locations and ZIP contents. The repository contains only previously generated synthetic fixtures and plots. Real dataset statistics, manufacturing metrics, operating threshold and failure patterns remain blocked. Historical smoke results are isolated in [smoke-only verification](docs/smoke_verification.md) and must not be presented as assessment results. See [dataset audit](artifacts/dataset_analysis.md) and [verification report](artifacts/verification.json).
+## Dataset and split integrity
 
-| Assessment result | Status |
+[KSDD2 official source](https://www2.vicos.si/resources/kolektorsdd2/) · [official ZIP](https://data.vicos.si/datasets/KSDD/KolektorSDD2.zip).
+Kolektor captured and annotated real production surfaces under controlled industrial conditions. Defects include scratches, spots and surface imperfections. This public substitute was **not supplied by Spark AI**.
+
+License: **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)**. Commercial dataset use requires contacting the authors; public availability does not grant commercial rights. This repository's example/contact-sheet figures derive from that dataset and retain the same attribution and license. Citation: Jakob Božič, Domen Tabernik, Danijel Skočaj, “Mixed supervision for surface-defect detection: from weakly to fully supervised learning”, *Computers in Industry*, 2021.
+
+| Partition | Normal | Defective | Total |
+|---|---:|---:|---:|
+| Official training (before subdivision) | 2,085 | 246 | 2,331 |
+| Training | 1,667 | 197 | 1,864 |
+| Validation | 418 | 49 | 467 |
+| Official test, preserved | 894 | 110 | 1,004 |
+| Entire canonical dataset | 2,979 | 356 | 3,335 |
+
+The official archive contains an extra byte-identical `10301 (copy).png` and its mask. Both hashes match their canonical originals; the audit records and excludes the duplicate pair. Canonical counts match the official documentation. All 3,335 RGB PNG images and grayscale masks decode successfully; masks contain 0 and 255, and **any nonzero annotation pixel defines defective**. Actual widths range 184–241 pixels; heights 597–665 pixels (approximately 230 × 630). No further exact decoded image duplicates were found.
+
+Normal:defective imbalance is **8.37:1** overall and **8.46:1** in training. An always-normal test classifier already reaches 89.04% accuracy while detecting no defects; defective precision, recall and F1 are therefore essential.
+
+Only the official training directory is subdivided, with scikit-learn stratification, 20% validation and **seed 42**. [Frozen manifest](reports/ksdd2/splits.csv) stores image and mask hashes, labels and membership; loaders reject changed data, duplicate paths and cross-split groups. The official test is excluded from optimization, early stopping, preprocessing/augmentation decisions, model selection and threshold tuning. Training examples alone informed preprocessing. Test evaluation is protected against accidental overwrite. Exact duplicate checks cannot establish independent physical products; product/session IDs and comprehensive near-duplicate verification are unavailable.
+
+![Class distribution](reports/ksdd2/class_distribution.png)
+![Official training examples; red boxes locate annotated defects](reports/ksdd2/training_examples.jpg)
+
+Full observed dimensions, annotation details and duplicate evidence: [dataset audit](reports/ksdd2/dataset_analysis.md), [machine-readable audit](reports/ksdd2/dataset_analysis.json).
+
+## Preprocessing, model and training
+
+Use aspect-preserving bilinear resize with padding to **224 pixels wide × 640 high**. Keep the complete frame; no square squash or crop. Padding uses approximately the ImageNet mean RGB, followed by ImageNet normalization. Typical images retain almost their original resolution. Downsampling can still weaken extremely small defects. Validation, test and both inference backends share deterministic preprocessing, enforced by checkpoint metadata.
+
+Final training augmentation: **±10% brightness/contrast jitter**, followed by deterministic full-frame padding. No flips, rotation, random crop, blur, erasing or artificial defects. A validation-only pilot using ±2° expanded rotations introduced conspicuous gray padding changes and poor early operating-point behavior. I inspected the transformed training images and compared a conservative photometric-only run before touching the test set; the [experiment report](reports/ksdd2/augmentation_review.json) records the validation evidence. Orientation plausibility was not assumed.
+
+**ImageNet1K_V1-pretrained ResNet18**, with a two-output classification head, provides a lightweight, CPU-deployable baseline for only 197 training positives. No architecture search was performed. Train the head for one epoch; then unfreeze the backbone and head, using a ten-times lower backbone learning rate. BatchNorm running statistics stay fixed. A final-stage-only pilot had a poor high-recall operating point; the full-backbone option was assessed using validation data before final test evaluation. No test observations informed this decision.
+
+Weighted cross-entropy uses `N/(2*n_class)`: **normal=0.559088, defective=4.730964**. Training batches remain shuffled at natural prevalence. Validation and test prevalence is unchanged.
+
+| Setting | Actual run |
 |---|---|
-| Real images / class distribution / dimensions / formats | Dataset not located in accessible searched locations |
-| Real train / validation / test counts | Pending dataset audit |
-| Real accuracy / precision / recall / F1 | Not measured |
-| Real confusion matrix / FP / FN findings | Not measured |
-| Real operating threshold | Must be selected on validation data |
+| Seed / device / batch size / CPU threads | 42 / cuda / 16 / 4 |
+| Optimizer | AdamW, weight decay 0.0001 |
+| Head LR / backbone LR | 0.001 / 0.0001 |
+| Epoch cap / early-stop patience | 10 / 3 |
+| Scheduler | ReduceLROnPlateau on validation F1, factor 0.5, patience 2 |
+| Checkpoint rule | Highest defective validation F1 at 0.5; ties use lower validation loss |
+| Epochs completed / selected epoch | 8 / 5 |
 
-**Current software checks:** 14 tests passed; Ruff lint/format and Docker Compose configuration checks passed. Real training, test evaluation, ONNX parity, latency and API predictions require the missing dataset and its trained checkpoint. Docker build/start additionally requires the Docker engine, which is unavailable. No synthetic quality or latency values are reported as real results here.
+Logs retain training loss, training metrics, validation loss, accuracy, precision, recall, F1 and learning rates. [Configuration](reports/ksdd2/config.json) · [epoch history](reports/ksdd2/history.json). Weighted loss is aggregated using its effective weight denominator, avoiding incorrect averages of weighted batch means. Random seeds and deterministic PyTorch operations are fixed; numerical identity across platforms is not promised.
 
-## Dataset audit and splits
+## Validation-only operating threshold
 
-`src.analyze_data` recursively inventories the supplied directory. It logs formats, dimensions after EXIF correction, corrupt files, SHA-256 and decoded-pixel duplicates, dHash near-duplicates (Hamming distance ≤2), label conflicts and merged group counts. Corrupt images are listed and excluded; unknown labels and exact duplicates with conflicting labels block splitting. Near-duplicates are conservatively kept together. Exhaustive near-duplicate search is limited to 5,000 labeled images; larger datasets explicitly report that this step was skipped.
+After choosing the checkpoint, examine every distinct validation probability boundary plus 0, 0.5 and 1. Select maximum precision subject to **defective recall ≥95%**; ties use F1 then the highest threshold. The selected threshold is **0.13742648**, with validation precision **78.33%**, recall **95.92%** and F1 **86.24%**.
 
-Folder names `normal/good/ok` and `defective/defect/bad/ng` map to binary labels, case-insensitively. Other layouts require a CSV; no arbitrary defect folder is silently relabeled. Example:
+A false negative may ship a defective product to a customer. A false positive may unnecessarily reject a good item or trigger manual review. The 95% target is a predeclared QC preference, not a production cost optimum. With only 49 validation defects, recall changes in steps of 2.04 percentage points; the 95% target requires at least 47 correct detections (95.92%). The threshold is never tuned on test labels and probability-based confidence is not calibrated certainty. [Complete threshold sweep and validation predictions](reports/ksdd2/threshold_selection.json).
 
-```csv
-path,label,group
-captures/item17_front.png,normal,product17
-captures/item17_back.png,normal,product17
-captures/item18_front.png,defective,product18
+![Validation threshold tradeoff](reports/ksdd2/threshold_tradeoff.png)
+
+## Final untouched official test results
+
+One final test evaluation after checkpoint and threshold selection:
+
+| Metric (defective positive) | Measured |
+|---|---:|
+| Accuracy | 95.7171% |
+| Precision | 77.2358% |
+| Recall | 86.3636% |
+| F1 | 81.5451% |
+| True negatives / false positives | 866 / 28 |
+| False negatives / true positives | 15 / 95 |
+| Support | 894 normal, 110 defective |
+
+Confusion matrix (rows = ground truth; columns = prediction, order normal/defective):
+`[[866, 28], [15, 95]]`.
+
+![Final confusion matrix](reports/ksdd2/confusion_matrix.png)
+
+[Generated metrics and hashes](reports/ksdd2/evaluation.json) · [classification report](reports/ksdd2/classification_report.json) · [every image prediction](reports/ksdd2/test_predictions.json). These files are generated from model outputs; quality metrics are not manually edited.
+
+The validation recall target did **not** generalize to the official test: recall fell from 95.92% to 86.36%. Fifteen of 110 defective test images were missed. This operating point is a measured baseline, not a production acceptance guarantee; it was retained without test-driven tuning.
+
+## Actual error review
+
+Visually inspected six highest-confidence false positives and six highest-confidence false negatives, using full images and enlarged annotation crops. All 43 errors are recorded; descriptive notes apply only to inspected examples.
+
+**False positives:** normal images show pale flecks, strong vertical/diagonal striations, mottled texture and uneven brightness. Examples include the isolated fleck in `test/20719.png` and pronounced vertical texture in `test/20008.png`. Their official masks are empty. These cues resemble defect patterns visually; this does not establish label errors or the classifier's causal mechanism.
+
+**False negatives:** several misses are thin, small or weak-contrast marks, including `test/20816.png` (181 annotated pixels) and `test/20259.png` (323 pixels). The scratch in `test/20142.png` lies along the upper-left boundary. `test/20969.png` has a larger, low-contrast patch (3,390 pixels), so size alone does not explain all misses. The full frame is preserved; no crop removed these regions. Network downsampling/global pooling may weaken localized cues, but that remains a hypothesis.
+
+| Filename | Ground truth | Prediction | p(defective) | Class probability confidence | Annotated pixels |
+|---|---|---|---:|---:|---:|
+| test/20139.png | defective | normal | 0.028051 | 0.971949 | 559 |
+| test/20142.png | defective | normal | 0.034778 | 0.965222 | 1763 |
+| test/20259.png | defective | normal | 0.034403 | 0.965597 | 323 |
+| test/20801.png | defective | normal | 0.036984 | 0.963016 | 429 |
+| test/20816.png | defective | normal | 0.030095 | 0.969905 | 181 |
+| test/20969.png | defective | normal | 0.033948 | 0.966052 | 3390 |
+| test/20008.png | normal | defective | 0.777744 | 0.777744 | 0 |
+| test/20201.png | normal | defective | 0.461324 | 0.461324 | 0 |
+| test/20651.png | normal | defective | 0.913001 | 0.913001 | 0 |
+| test/20719.png | normal | defective | 0.938966 | 0.938966 | 0 |
+| test/20879.png | normal | defective | 0.669904 | 0.669904 | 0 |
+| test/20950.png | normal | defective | 0.532558 | 0.532558 | 0 |
+
+![Reviewed false positives](reports/ksdd2/errors/false_positive.jpg)
+![Reviewed false negatives, with annotated crops](reports/ksdd2/errors/false_negative.jpg)
+
+Findings were recorded after the final test evaluation. No threshold adjustment, retraining or model selection followed this review.
+
+
+Error records contain filename, ground truth, prediction, defective probability and class-probability confidence. Contact sheets preserve full images and show annotation locations where present. Test error review is descriptive and did not trigger retraining or threshold changes. [Error records](reports/ksdd2/errors/errors.json). Optional [Grad-CAM diagnostics](reports/ksdd2/gradcam) are post-evaluation illustrations of coarse final-layer attention, not causal explanations or a segmentation result.
+
+## Architecture and API
+
+
+```mermaid
+flowchart TD
+    A[KSDD2 images and official masks] --> B[Decode audit, annotation labels, duplicate checks]
+    B --> C[Preserve official train and official test]
+    C --> D[Seed 42 stratified train/validation split]
+    D --> E[Conservative training augmentation]
+    E --> F[ImageNet ResNet18 transfer learning with weighted loss]
+    F --> G[Best checkpoint using validation F1]
+    G --> H[Validation-only threshold selection]
+    C --> I[Untouched official test]
+    H --> J[One final test evaluation]
+    I --> J
+    J --> K[PyTorch checkpoint and generated metrics]
+    K --> L[ONNX export, numerical parity, CPU benchmark]
 ```
-
-Use `--metadata metadata.csv` for explicit product/batch/session groups, or `--group-regex 'product_(\d+)'` to capture IDs from relative paths. Groups must identify the physical capture unit **across classes and folders**. Inspect the actual filenames and metadata before choosing this option. Without IDs, each image starts as a group and duplicate links merge groups; this cannot establish that different views show different products. Review the near-duplicate list because low-texture images may be over-grouped.
-
-Seed 42 fixes 256 candidate group splits. The chosen candidate minimizes deviation from 70/15/15 **within each class**, while requiring both classes in every partition. Group integrity takes precedence over exact percentages. Small or over-grouped datasets fail with an actionable message instead of producing misleading splits. `splits.csv` freezes relative paths, labels, groups, file hashes and membership. Training/evaluation reject changed files and cross-split groups; evaluation also checks the manifest against the training checkpoint.
-
-## Preprocessing, imbalance and model
-
-Images become EXIF-corrected RGB and are letterboxed to 224×224 using bilinear interpolation and neutral padding, followed by ImageNet mean/std normalization. This intentionally replaces torchvision's default center crop: an edge defect must remain visible. Letterboxing may shrink tiny defects and introduces padding; inspect these risks on real images.
-
-Training adds ±5° rotation, ±2% translation, and ±10% brightness/contrast. No flips are enabled because product symmetry is unknown; no random crop, erasing or blur removes defects. Mild rotations can still clip extreme corners: review the augmentation on the supplied products and disable it if corner inspection is critical. Validation/test/service transformations are deterministic and shared.
-
-ResNet18 starts from `ResNet18_Weights.IMAGENET1K_V1`, with its 512-feature classifier replaced by two logits. Its conventional residual backbone is easy to explain and export; approximately 11.2M parameters are reasonable for a baseline and CPU deployment. MobileNetV3 is a future option if measured line-rate latency demands it. See [torchvision ResNet18 documentation](https://docs.pytorch.org/vision/stable/models/generated/torchvision.models.resnet18.html).
-
-Measure imbalance on **training only**. If majority/minority ≥1.5, weighted cross-entropy uses `N / (2 × class_count)`; otherwise weights are `[1,1]`. Counts, ratio and actual weights are logged and stored. The cutoff is a pragmatic configurable-in-code policy, not a statistical law. No oversampling duplicates minority images or alters validation/test prevalence.
-
-## Training, threshold and evaluation
-
-Default training uses two frozen-backbone epochs, then full fine-tuning. AdamW uses head LR `1e-3`, backbone LR `1e-4`, weight decay `1e-4`; ReduceLROnPlateau halves LR after stalled validation F1. BatchNorm running statistics remain fixed for small batches. Epoch logs record train/validation loss, defect precision/recall/F1, accuracy and learning rates. Best checkpoint maximizes validation F1 at 0.5, with lower validation loss breaking ties; patience 5 stops after the unfrozen phase starts. Random generators, worker seeds and deterministic torch algorithms are configured; CPU is automatic when CUDA is absent. Reproducibility is expected within the same software/hardware environment, not across every backend.
-
-Only the selected checkpoint's **validation** probabilities determine the operating threshold. The default policy maximizes precision while reaching empirical defect recall ≥95%, breaking ties by F1 then the highest threshold. `--target-recall` changes this assumption. All unique probability boundaries plus 0, 0.5 and 1 are inspected, and the full trade-off is saved in `threshold_selection.json`. Checkpoint selection at 0.5 is deliberately separate from this operating policy; a future study can select checkpoints by cost-weighted validation utility.
-
-A false positive sends a normal item to rejection/manual review; a false negative lets a defective item through. The default favors recall because escaped defects can be expensive, while precision constrains review load. A threshold can satisfy recall by flagging almost everything; the saved precision must always be reviewed. A small validation sample cannot establish 95% production recall. Confidence is the predicted class softmax probability, **not calibrated certainty**. At a threshold below 0.5, a `defective` prediction can correctly have confidence below 0.5; `defect_probability` removes ambiguity.
-
-`src.evaluate` uses the stored threshold and test split once. It writes `evaluation.json`, per-image `test_predictions.json`, and `confusion_matrix.png` (rows=true; columns=predicted). It refuses to overwrite an existing evaluation. A failed evaluation leaves an `evaluation_in_progress` marker: diagnose the failure before removing that file and retrying. Do not tune against test results. Reports include per-class metrics and a small-sample warning.
-
-`src.error_analysis` consumes saved predictions without repeating model evaluation. It saves all FP/FN filenames, labels, confidence and defect probability, plus highest-confidence example sheets and brightness/contrast cues. Review lighting, blur, small or low-contrast defects, background, orientation, occlusion, label noise and product domains. Cues are not causal conclusions. **Real failure analysis is pending the missing dataset.** Update the assessment results above and embed `artifacts/run-001/confusion_matrix.png` after real evaluation; use a fresh holdout if findings drive retraining.
-
-## Architecture
 
 ```mermaid
 flowchart LR
-  subgraph Online[Online inspection]
-    A[Client image] --> B[FastAPI]
-    B --> C[Upload and image validation]
-    C --> D[RGB and letterbox preprocessing]
-    D --> E[ResNet18 / ONNX Runtime]
+    A[Uploaded image] --> B[FastAPI size and decoding validation]
+    B --> C[Full-frame 224 x 640 preprocessing]
+    C --> D[Startup-loaded PyTorch or ONNX Runtime]
+    D --> E[Defective probability]
     E --> F[Validation-selected threshold]
-    F --> G[Normal or defective + confidence]
-    G --> H[JSON response and structured logging]
-  end
-  subgraph Offline[Offline development]
-    I[Dataset] --> J[Dataset audit]
-    J --> K[Group-aware split]
-    K --> L[Training augmentation]
-    L --> M[ImageNet transfer learning]
-    M --> N[Validation and threshold selection]
-    N --> O[Held-out test evaluation]
-    O --> P[ONNX export and parity check]
-    P --> E
-    N --> E
-  end
+    F --> G[Normal/Defective and class probability confidence]
+    G --> H[Structured response and JSON logging]
 ```
 
-## Structure
+Masks supply binary training labels and post-evaluation review annotations. They are never inference inputs.
 
-```text
-app/          configuration, startup, validation, inference, response schema
-src/          audit, data, model, training, metrics, evaluation, error analysis, ONNX, benchmark
-scripts/      synthetic fixtures, real HTTP check, end-to-end verification
-tests/        preprocessing, split/leakage, mapping, model, threshold and API tests
-artifacts/    local run outputs; ignored except concise initial audit/verification
-docs/         recording script and measured verification notes
-```
 
-## Setup and reproduce
+FastAPI validates multipart bodies before parsing and limits image uploads to 8 MiB. It checks supported image types, decoding, single frames and pixel limits. One model is loaded at startup. CPU inference is serialized per worker; use one uvicorn worker to avoid loading multiple copies. Structured logs record prediction outputs without retaining uploaded images.
 
-Python 3.12. Run from the repository root. These pinned versions match the tested environment; `constraints.txt` also pins the installed transitive dependencies. For a clean Windows environment:
+`GET /health`: 200 when ready, 503 when the model is unavailable. `POST /predict`: multipart field `file`; 200 success, 413 oversized upload, 415 unsupported declared media type, 422 malformed image/missing field, 503 unavailable model. Response includes `predicted_class`, `confidence`, `defect_probability`, `decision_threshold`, `inference_time_ms`, `model_version`. Confidence equals `p(defective)` for a defective decision and `1-p(defective)` for a normal decision, even with a threshold below 0.5.
+
+## Setup and complete reproduction
+
+Python 3.12. CPU deployment measurements used Windows-11-10.0.26200-SP0, Intel64 Family 6 Model 186 Stepping 2, GenuineIntel (Intel Core i5-13420H), PyTorch 2.14.0+cpu. Training used NVIDIA GeForce RTX 4050 Laptop GPU with PyTorch 2.14.0+cu130. The CUDA wheel step follows [PyTorch's official installation index](https://pytorch.org/get-started/locally/); omit it and use `--device cpu` on a CPU-only machine. Run in the repository root (PowerShell):
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements-dev.txt -c constraints.txt
+python -m pip install --no-deps torch==2.14.0+cu130 torchvision==0.29.0+cu130 --index-url https://download.pytorch.org/whl/cu130
+python -m scripts.download_ksdd2
+python -m src.ksdd2
+python -m src.train --data data/KolektorSDD2 --manifest reports/ksdd2/splits.csv --output artifacts/reproduced --epochs 10 --freeze-epochs 1 --backbone-mode all --rotation-degrees 0 --batch-size 16 --lr 0.001 --patience 3 --target-recall 0.95 --seed 42 --threads 4 --device cuda
+python -m src.evaluate --data data/KolektorSDD2 --manifest reports/ksdd2/splits.csv --checkpoint artifacts/reproduced/best.pt --threads 4
+python -m src.error_analysis --data data/KolektorSDD2 --run artifacts/reproduced
+python -m src.export_onnx --checkpoint artifacts/reproduced/best.pt --samples data/KolektorSDD2/train/10000.png data/KolektorSDD2/train/10021.png
+python -m src.benchmark --checkpoint artifacts/reproduced/best.pt --sample data/KolektorSDD2/train/10000.png --threads 2 --warmup 10 --repeats 50
+python -m scripts.check_api --checkpoint artifacts/reproduced/best.pt --sample data/KolektorSDD2/train/10000.png --additional-samples data/KolektorSDD2/train/10021.png
+python -m scripts.check_api --checkpoint artifacts/reproduced/best.pt --sample data/KolektorSDD2/train/10000.png --additional-samples data/KolektorSDD2/train/10021.png --backend onnx
 ```
 
-Linux activation: `source .venv/bin/activate`. For CPU-only Linux install torch/torchvision from `https://download.pytorch.org/whl/cpu` first, as in the Dockerfile. GPU builds require the appropriate PyTorch wheel for your CUDA environment.
+Choose a fresh run directory; training rejects existing results and evaluation refuses overwriting the final test report. The locally completed submission checkpoint is `artifacts/run-001/best.pt`. Raw images, ZIPs, caches and large model artifacts are ignored in Git. Reproduction generates the checkpoint; no artifact/release remote is configured. Download/extraction alone requires roughly 2 GiB; CPU training requires additional memory and takes substantially longer than GPU training. For a different supplied dataset, use the generic `src.analyze_data` CSV/folder audit and the same training/inference architecture; KSDD2 uses its dedicated official-split adapter.
 
-Place the assessment data in `data/` (ignored), then execute in this order. Add `--metadata data/metadata.csv` or `--group-regex` to the audit when captures share a product/session. Set the sample path to an actual image.
+Start the local submission API:
 
-```bash
-python -m src.analyze_data --data data --output artifacts
-python -m src.train --data data --manifest artifacts/splits.csv --output artifacts/run-001 --epochs 20 --freeze-epochs 2 --batch-size 16 --lr 0.001 --target-recall 0.95
-python -m src.evaluate --data data --manifest artifacts/splits.csv --checkpoint artifacts/run-001/best.pt
-python -m src.error_analysis --data data --run artifacts/run-001
-python -m src.export_onnx --checkpoint artifacts/run-001/best.pt --samples data/normal/sample.png
-python -m src.benchmark --checkpoint artifacts/run-001/best.pt --sample data/normal/sample.png --warmup 10 --repeats 50 --threads 2
+```powershell
+$env:MODEL_PATH = 'artifacts/run-001/best.pt'
+$env:INFERENCE_BACKEND = 'pytorch'
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8010
+```
+
+In another terminal:
+
+```powershell
+curl.exe --noproxy "*" http://127.0.0.1:8010/health
+curl.exe --noproxy "*" -X POST http://127.0.0.1:8010/predict -F "file=@data/KolektorSDD2/train/10000.png;type=image/png"
+curl.exe --noproxy "*" -X POST http://127.0.0.1:8010/predict -F "file=@data/KolektorSDD2/train/10021.png;type=image/png"
+```
+
+For ONNX set `MODEL_PATH=artifacts/run-001/best.onnx` and `INFERENCE_BACKEND=onnx` before startup. [Natural 2–3 minute recording script](docs/demo_script.md).
+
+## ONNX parity and CPU latency
+
+Export uses opset 17 and a dynamic batch axis. ONNX checker and Runtime verify random batches and real normal/defective images. Maximum absolute logit difference: **3.3378601e-06**; all compared probability/class decisions agree within `atol=1e-5, rtol=1e-4`. Export metadata stores checkpoint/ONNX hashes, threshold and preprocessing contract. The API rejects a changed ONNX file.
+
+| Backend | Median | p95 |
+|---|---:|---:|
+| PyTorch CPU | 492.795 ms | 585.150 ms |
+| ONNX Runtime CPU | 310.008 ms | 416.862 ms |
+
+Batch size 1, two CPU threads, 10 warmups, 50 timed runs. Scope: RGB preprocessing + model + threshold; excludes decoding, HTTP and startup. Results describe this laptop and its load, not production throughput. [Raw benchmark environment and results](reports/ksdd2/benchmark.json).
+
+## Packaging and software checks
+
+```powershell
+docker compose config -q
+docker compose up --build -d
+curl.exe --noproxy "*" http://127.0.0.1:8011/health
+curl.exe --noproxy "*" -X POST http://127.0.0.1:8011/predict -F "file=@data/KolektorSDD2/train/10021.png;type=image/png"
+docker compose down
 python -m pytest -q
 python -m ruff check .
 python -m ruff format --check .
 ```
 
-Use a fresh `--output` run directory for another experiment; existing training runs are protected from overwrite. CLI `--help` documents batch size, LR, epochs, patience, threads, workers, device and seed. First training downloads ~45MB of ImageNet weights and fails visibly if unavailable; inference never downloads weights.
+Docker uses CPU wheels, a non-root user, read-only Compose filesystem and readiness health check. Only required model artifacts enter the build context; data and training caches stay outside the image. [Executed verification and exact Docker status](docs/verification.md). Tests cover preprocessing, mask-derived classes, official test preservation, threshold boundaries, model outputs, API readiness, invalid/oversized/corrupt uploads and ONNX metadata/parity. Separate live HTTP checks exercise real normal/defective images through both backends. Synthetic unit fixtures test software behavior only.
 
-To repeat the software sanity check without real data:
+## Limits and next steps
 
-```bash
-python -m scripts.verify --output artifacts/smoke-reproduce
-```
-
-This creates 80 **synthetic** images, runs two ImageNet transfer-learning epochs, evaluation, error sheets, export, parity, latency, tests/lint and real HTTP calls for both backends. Use another empty output directory on reruns. It does not build Docker or establish defect-detection quality.
-
-## API
-
-```bash
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
-curl http://localhost:8000/health
-curl -X POST -F "file=@sample.jpg" http://localhost:8000/predict
-```
-
-PowerShell users should use `curl.exe`. The default checkpoint is `artifacts/run-001/best.pt`. The model loads once during FastAPI lifespan startup ([FastAPI upload reference](https://fastapi.tiangolo.com/tutorial/request-files/)). `/health` returns 200 when loaded and 503 otherwise. Missing artifacts never trigger a random-model fallback. Swagger UI is at `/docs`.
-
-Environment variables: `MODEL_PATH`, `INFERENCE_BACKEND=pytorch|onnx`, `MAX_UPLOAD_BYTES` (8MiB default), `INFERENCE_THREADS` (2 default). ONNX uses `MODEL_PATH=artifacts/run-001/best.onnx` plus its adjacent `best.json`. The metadata binds threshold, mapping and preprocessing to the verified ONNX hash.
-
-Supported uploads: single-frame JPEG/PNG/BMP/TIFF/WebP with image MIME types. Actual contents must decode; images over 20M pixels and multi-frame files fail. A bounded ASGI middleware limits total multipart size (file limit +64KiB overhead), including chunked requests, **before parsing**. Statuses: 413 oversized, 415 unsupported type, 422 missing/unreadable input, 503 unloaded model, 500 unexpected inference failure. Prediction runs in a thread pool with one model lock to avoid CPU oversubscription. Structured JSON logs record class, probabilities, threshold, model version and timing without image bytes or client filenames.
-
-Response fields: `predicted_class`, `confidence`, `defect_probability`, `model_version`, `decision_threshold`, `inference_time_ms`. Timing covers preprocessing, model/lock wait and threshold, excluding upload/decode/HTTP. Historical synthetic examples are isolated in [smoke-only verification](docs/smoke_verification.md); no real prediction example is available yet.
-
-For a real HTTP startup and upload check (starts and stops its own process):
-
-```bash
-python -m scripts.check_api --checkpoint artifacts/run-001/best.pt --sample data/normal/sample.png --backend pytorch
-python -m scripts.check_api --checkpoint artifacts/run-001/best.pt --sample data/normal/sample.png --backend onnx
-```
-
-## Export and deployment
-
-ONNX opset 17 uses a dynamic batch axis with fixed 224×224 spatial input. Export checks graph validity and numerical parity (logits `atol=1e-5`, `rtol=1e-4`) on seeded inputs of batch sizes 1/2 and optional real images. Supply representative normal/defective examples. The service uses [ONNX Runtime CPU execution](https://onnxruntime.ai/docs/api/python/tutorial.html). Floating-point differences very close to the cutoff can change a label; log probability and threshold and define a review band before line deployment.
-
-The benchmark compares preprocessing + inference at batch 1, equal CPU thread counts, ten warmups and fifty measurements. Mean/median/p95 and platform details are saved in `benchmark.json`. Excludes decode, HTTP, startup and concurrent load; does not imply production throughput. See [current verification status](docs/verification.md); real latency is not measured and no speed advantage is assumed.
-
-After training the **real** `artifacts/run-001/best.pt`, build:
-
-```bash
-docker build -t defect-detector .
-docker run --rm -p 8000:8000 defect-detector
-docker compose up --build
-```
-
-The Python slim image installs CPU wheels and pinned dependencies, copies the model, uses UID 10001, exposes 8000 and checks `/health`. Compose adds a read-only filesystem and bounded temporary storage. One uvicorn worker avoids duplicating the model. The shared image retains training dependencies for simplicity; a separate ONNX-only image can reduce size later. Raw data and smoke artifacts are excluded from build context. Docker engine was unavailable here, so build/start is unverified; do not substitute the synthetic checkpoint for production.
-
-## Limitations, next steps and submission
-
-The principal blocker is the absent assessment dataset. Supply it, inspect label/group assumptions, run the commands, update real metrics and review actual FP/FN images. Other limits: 224px may erase tiny defects; dHash misses different viewpoints and can merge uniform images; transfer from ImageNet needs domain validation; softmax is uncalibrated; recall estimates need confidence intervals over independent products; no defect localization, authentication, concurrent-load study or drift alert is included. A public deployment needs a gateway with authentication/rate limits and request timeouts appropriate to its load.
-
-Future work should follow observed failures: higher resolution/ROI or tiling for small defects, more independent products per class, lighting and domain coverage, calibrated probabilities, explicit rejection costs and recall uncertainty, then a measured MobileNet/quantization comparison if latency requires it. These are proposals, not implemented claims.
-
-Commit `app/`, `src/`, `scripts/`, `tests/`, `docs/`, README, dependency/configuration files, Docker files, `.gitignore`, and the small permitted audit/verification reports. Keep raw images, environments, caches and ~45MB checkpoints/exports out of Git. Deliver the trained model separately (or through artifact storage), along with audit/splits/config/history/threshold/evaluation/error/benchmark results; the Docker build requires the downloaded local checkpoint. No Git repository existed initially, so no commit has been created.
+This is one industrial domain with only 197 training defects and 49 validation defects; transfer to a new factory is unproven. Small spots and weak scratches can remain below the classifier's effective resolution. Binary classification provides no reliable defect localization. Threshold and confidence need calibration to actual inspection costs. License limits dataset-derived commercial use. Before deployment, collect independent production batches and the intended assessment data, validate product/session separation, repeat training across seeds and compare tiled higher-resolution inference on validation data, calibrate probabilities, and monitor illumination/domain drift. Any new model selected after test review requires a fresh holdout.

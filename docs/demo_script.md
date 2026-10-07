@@ -26,13 +26,12 @@ defective examples more influence. I train the head, then fine-tune the backbone
 
 **1:15–1:35 — README measured results, confusion matrix, and one error sheet**
 
-Read the actual precision, recall, F1, FP and FN values shown in README.
-
 “The threshold was selected on validation data to prioritize defect recall while retaining useful precision.
 A missed defect may reach a customer; a false alarm may cause manual review or unnecessary rejection.
-These are the results of one final evaluation on the untouched official test set. Here is one visually reviewed error.”
+The untouched test gives 77 percent precision, 86 percent recall and 82 percent F1. There are 28 false alarms
+and 15 missed defects; the validation recall target did not fully generalize. This thin edge scratch is one missed example.”
 
-Point to the example's filename, annotation, probability and predicted class. Use the findings in README;
+Show `test/20142.png` in `reports/ksdd2/errors/false_negative.jpg`: annotation box, probability and predicted class. Use the findings in README;
 do not claim the image establishes a causal explanation.
 
 **1:35–2:10 — terminal and real HTTP predictions**
@@ -59,7 +58,8 @@ its probability-based confidence, defective probability, threshold, timing and m
 **2:10–2:30 — `reports/ksdd2/best.json`, `benchmark.json`, and Dockerfile**
 
 “I exported the selected checkpoint to ONNX and checked logits, probabilities and predicted classes against PyTorch.
-These CPU medians use warmup and repeated batch-one inference, including preprocessing.
+The measured CPU medians are 493 milliseconds for PyTorch and 310 for ONNX, using warmup and repeated
+batch-one inference including preprocessing.
 Docker packages the same checkpoint and API as a non-root service.”
 
 Read the measured medians. Only claim completed Docker checks listed in `docs/verification.md`.
