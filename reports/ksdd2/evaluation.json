@@ -1,0 +1,54 @@
+{
+  "accuracy": 0.9571713147410359,
+  "precision": 0.7723577235772358,
+  "recall": 0.8636363636363636,
+  "f1": 0.8154506437768241,
+  "threshold": 0.1374264806509018,
+  "confusion_matrix": [
+    [
+      866,
+      28
+    ],
+    [
+      15,
+      95
+    ]
+  ],
+  "per_class": {
+    "normal": {
+      "precision": 0.9829738933030647,
+      "recall": 0.9686800894854586,
+      "f1-score": 0.9757746478873239,
+      "support": 894.0
+    },
+    "defective": {
+      "precision": 0.7723577235772358,
+      "recall": 0.8636363636363636,
+      "f1-score": 0.8154506437768241,
+      "support": 110.0
+    },
+    "accuracy": 0.9571713147410359,
+    "macro avg": {
+      "precision": 0.8776658084401503,
+      "recall": 0.9161582265609112,
+      "f1-score": 0.895612645832074,
+      "support": 1004.0
+    },
+    "weighted avg": {
+      "precision": 0.9598984165402747,
+      "recall": 0.9571713147410359,
+      "f1-score": 0.9582092689509145,
+      "support": 1004.0
+    }
+  },
+  "status": "complete",
+  "test_count": 1004,
+  "checkpoint_sha256": "c88759132e2606edbd849fe7b694be0548541decdf027b3e91257caa791cc412",
+  "manifest_sha256": "655282b430be9d48bbc4f39fa41526b2fdea704f77c43968c52322dfd00b997f",
+  "model_version": "run-001",
+  "small_sample_warning": null,
+  "true_negatives": 866,
+  "false_positives": 28,
+  "false_negatives": 15,
+  "true_positives": 95
+}
