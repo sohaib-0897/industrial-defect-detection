@@ -52,7 +52,14 @@ def test_frozen_submission_counts_and_operating_point():
     assert f"{latency['onnx']['median_ms']:.2f}" == "310.01"
 
 
-def test_post_evaluation_statistics_provenance_and_reproducibility():
+def test_post_evaluation_statistics_provenance_and_reproducibility(tmp_path):
     stored = json.loads((REPORTS / "post_evaluation_statistics.json").read_text(encoding="utf-8"))
     assert stored == describe(REPORTS / "test_predictions.json")
     assert stored["sample_count"] == 1004 and stored["positive_support"] == 110
+    content = (REPORTS / "test_predictions.json").read_bytes().replace(b"\r\n", b"\n")
+    for variant in (content, content.replace(b"\n", b"\r\n")):
+        temporary = tmp_path / "predictions.json"
+        temporary.write_bytes(variant)
+        portable = describe(temporary)
+        for key in ("prediction_sha256", "average_precision", "roc_auc"):
+            assert portable[key] == stored[key]

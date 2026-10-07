@@ -8,7 +8,7 @@ from sklearn.metrics import average_precision_score, roc_auc_score
 
 
 def describe(path: Path) -> dict:
-    content = path.read_bytes()
+    content = path.read_bytes().replace(b"\r\n", b"\n")
     rows = json.loads(content)
     if not rows or len({row["path"] for row in rows}) != len(rows):
         raise ValueError("Expected unique saved test predictions")
@@ -25,6 +25,7 @@ def describe(path: Path) -> dict:
         "positive_class": "defective",
         "prediction_file": path.as_posix(),
         "prediction_sha256": hashlib.sha256(content).hexdigest(),
+        "prediction_hash_encoding": "UTF-8 JSON bytes with CRLF normalized to LF for cross-platform checkouts",
         "sample_count": len(rows),
         "positive_support": sum(labels),
         "average_precision": float(average_precision_score(labels, probabilities)),
