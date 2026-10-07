@@ -22,7 +22,7 @@ I verified both hashes and excluded that duplicate pair.”
 I preserve the full image at 224 by 640 instead of compressing these tall images into a small square.
 Augmentation uses mild brightness and contrast changes. Expanded rotations created substantial padding changes,
 so I checked that choice using validation data and kept the final augmentation conservative. Weighted cross-entropy gives
-defective examples more influence. I train the head, then fine-tune the final residual stage at a lower learning rate.”
+defective examples more influence. I train the head, then fine-tune the backbone at a lower learning rate.”
 
 **1:15–1:35 — README measured results, confusion matrix, and one error sheet**
 

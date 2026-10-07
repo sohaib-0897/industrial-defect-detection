@@ -56,7 +56,7 @@ Use aspect-preserving bilinear resize with padding to **224 pixels wide × 640 h
 
 Final training augmentation: **±10% brightness/contrast jitter**, followed by deterministic full-frame padding. No flips, rotation, random crop, blur, erasing or artificial defects. A validation-only pilot using ±2° expanded rotations introduced conspicuous gray padding changes and poor early operating-point behavior. I inspected the transformed training images and compared a conservative photometric-only run before touching the test set; the experiment report records the validation evidence. Orientation plausibility was not assumed.
 
-**ImageNet1K_V1-pretrained ResNet18**, with a two-output classification head, provides a lightweight, CPU-deployable baseline for only 197 training positives. No architecture search was performed. Train the head for one epoch; then unfreeze `layer4` and the head while retaining earlier pretrained filters. BatchNorm running statistics stay fixed. This limits adaptation and CPU cost on a small dataset; `--backbone-mode all` supports full fine-tuning for a future validation-controlled experiment.
+**ImageNet1K_V1-pretrained ResNet18**, with a two-output classification head, provides a lightweight, CPU-deployable baseline for only 197 training positives. No architecture search was performed. Train the head for one epoch; then unfreeze the backbone and head, using a ten-times lower backbone learning rate. BatchNorm running statistics stay fixed. A final-stage-only pilot had a poor high-recall operating point; the full-backbone option was assessed using validation data before final test evaluation. No test observations informed this decision.
 
 Weighted cross-entropy uses `N/(2*n_class)`: **normal={config["class_weights"][0]:.6f}, defective={config["class_weights"][1]:.6f}**. Training batches remain shuffled at natural prevalence. Validation and test prevalence is unchanged.
 
@@ -64,7 +64,7 @@ Weighted cross-entropy uses `N/(2*n_class)`: **normal={config["class_weights"][0
 |---|---|
 | Seed / device / batch size / CPU threads | 42 / {config["device_used"]} / {config["batch_size"]} / {config["threads"]} |
 | Optimizer | AdamW, weight decay 0.0001 |
-| Head LR / final residual-stage LR | 0.001 / 0.0001 |
+| Head LR / backbone LR | 0.001 / 0.0001 |
 | Epoch cap / early-stop patience | {config["epochs"]} / {config["patience"]} |
 | Scheduler | ReduceLROnPlateau on validation F1, factor 0.5, patience 2 |
 | Checkpoint rule | Highest defective validation F1 at 0.5; ties use lower validation loss |
@@ -124,7 +124,7 @@ python -m pip install -r requirements-dev.txt -c constraints.txt
 python -m pip install --no-deps torch==2.14.0+cu130 torchvision==0.29.0+cu130 --index-url https://download.pytorch.org/whl/cu130
 python -m scripts.download_ksdd2
 python -m src.ksdd2
-python -m src.train --data data/KolektorSDD2 --manifest reports/ksdd2/splits.csv --output artifacts/reproduced --epochs 10 --freeze-epochs 1 --backbone-mode last-block --rotation-degrees 0 --batch-size {config["batch_size"]} --lr 0.001 --patience 3 --target-recall 0.95 --seed 42 --threads 4 --device {config["device_used"]}
+python -m src.train --data data/KolektorSDD2 --manifest reports/ksdd2/splits.csv --output artifacts/reproduced --epochs 10 --freeze-epochs 1 --backbone-mode {config["backbone_mode"]} --rotation-degrees 0 --batch-size {config["batch_size"]} --lr 0.001 --patience 3 --target-recall 0.95 --seed 42 --threads 4 --device {config["device_used"]}
 python -m src.evaluate --data data/KolektorSDD2 --manifest reports/ksdd2/splits.csv --checkpoint artifacts/reproduced/best.pt --threads 4
 python -m src.error_analysis --data data/KolektorSDD2 --run artifacts/reproduced
 python -m src.export_onnx --checkpoint artifacts/reproduced/best.pt --samples data/KolektorSDD2/train/10000.png data/KolektorSDD2/train/10021.png
@@ -181,7 +181,7 @@ Docker uses CPU wheels, a non-root user, read-only Compose filesystem and readin
 
 ## Limits and next steps
 
-This is one industrial domain with only 197 training defects and 49 validation defects; transfer to a new factory is unproven. Small spots and weak scratches can remain below the classifier's effective resolution. Binary classification provides no reliable defect localization. Threshold and confidence need calibration to actual inspection costs. License limits dataset-derived commercial use. Before deployment, collect independent production batches and the intended assessment data, validate product/session separation, compare full-backbone fine-tuning and tiled higher-resolution inference on validation data, calibrate probabilities, and monitor illumination/domain drift. Any new model selected after test review requires a fresh holdout.
+This is one industrial domain with only 197 training defects and 49 validation defects; transfer to a new factory is unproven. Small spots and weak scratches can remain below the classifier's effective resolution. Binary classification provides no reliable defect localization. Threshold and confidence need calibration to actual inspection costs. License limits dataset-derived commercial use. Before deployment, collect independent production batches and the intended assessment data, validate product/session separation, repeat training across seeds and compare tiled higher-resolution inference on validation data, calibrate probabilities, and monitor illumination/domain drift. Any new model selected after test review requires a fresh holdout.
 """
     Path("README.md").write_text(contents, encoding="utf-8")
 

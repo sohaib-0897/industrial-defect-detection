@@ -50,7 +50,10 @@ def collect(run: Path, output: Path) -> None:
         from src.common import write_json
 
         pilot_history = json.loads(pilot.read_text(encoding="utf-8"))
-        final_history = json.loads((run / "history.json").read_text(encoding="utf-8"))
+        comparison = run.parent / "photometric-pilot" / "history.json"
+        final_history = json.loads(
+            (comparison if comparison.exists() else run / "history.json").read_text(encoding="utf-8")
+        )
         matched = [
             {
                 "epoch": old["epoch"],
