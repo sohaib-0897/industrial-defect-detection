@@ -1,0 +1,32 @@
+{
+  "transport": "real HTTP to running Docker Compose service on port 8011",
+  "health_status": 200,
+  "health": {
+    "status": "ok",
+    "backend": "pytorch",
+    "model_version": "run-001"
+  },
+  "predictions": [
+    {
+      "sample": "10000.png",
+      "status": 200,
+      "predicted_class": "normal",
+      "confidence": 0.9792849030345678,
+      "defect_probability": 0.020715096965432167,
+      "model_version": "run-001",
+      "decision_threshold": 0.1374264806509018,
+      "inference_time_ms": 212.069
+    },
+    {
+      "sample": "10021.png",
+      "status": 200,
+      "predicted_class": "defective",
+      "confidence": 0.9999997615814209,
+      "defect_probability": 0.9999997615814209,
+      "model_version": "run-001",
+      "decision_threshold": 0.1374264806509018,
+      "inference_time_ms": 149.493
+    }
+  ],
+  "corrupted_image_status": 422
+}

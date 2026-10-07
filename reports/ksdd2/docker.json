@@ -1,0 +1,39 @@
+{
+  "build": "passed; docker compose build with empty proxy build arguments",
+  "health_status": 200,
+  "health": {
+    "status": "ok",
+    "backend": "pytorch",
+    "model_version": "run-001"
+  },
+  "predictions": [
+    {
+      "sample": "10000.png",
+      "status": 200,
+      "predicted_class": "normal",
+      "confidence": 0.9792849030345678,
+      "defect_probability": 0.020715096965432167,
+      "model_version": "run-001",
+      "decision_threshold": 0.1374264806509018,
+      "inference_time_ms": 196.824
+    },
+    {
+      "sample": "10021.png",
+      "status": 200,
+      "predicted_class": "defective",
+      "confidence": 0.9999997615814209,
+      "defect_probability": 0.9999997615814209,
+      "model_version": "run-001",
+      "decision_threshold": 0.1374264806509018,
+      "inference_time_ms": 147.758
+    }
+  ],
+  "corrupted_image_status": 422,
+  "container_id": "e26d70f3a76ebb6feea4f0fddf18048234e80d9d1c9a0701fe593237de8a1da4",
+  "image_id": "sha256:97afcd7476cd098bf0a8e7428e23723006e7ab8361e4a478765f6e4722378b4f",
+  "user": "detector",
+  "read_only": true,
+  "container_state": "running",
+  "engine_version": "29.7.2",
+  "dependencies": "No broken requirements found."
+}
