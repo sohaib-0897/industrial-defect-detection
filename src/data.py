@@ -44,7 +44,11 @@ def preprocessing(
     if contract == PREPROCESSING:
         steps.append(transforms.Lambda(letterbox))
     elif contract == "letterbox224-imagenet-v1":
-        steps.append(transforms.Lambda(lambda image: ImageOps.pad(image, (224, 224), color=(124, 116, 104))))
+        steps.append(
+            transforms.Lambda(
+                lambda image: ImageOps.pad(image, (224, 224), method=Image.Resampling.BILINEAR, color=(124, 116, 104))
+            )
+        )
     else:
         raise ValueError("Unsupported preprocessing contract")
     steps.extend([transforms.ToTensor(), transforms.Normalize(MEAN, STD)])

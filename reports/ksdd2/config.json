@@ -1,0 +1,30 @@
+{
+  "data": "data\\KolektorSDD2",
+  "manifest": "reports\\ksdd2\\splits.csv",
+  "output": "artifacts\\run-001",
+  "epochs": 10,
+  "freeze_epochs": 1,
+  "backbone_mode": "all",
+  "rotation_degrees": 0.0,
+  "batch_size": 16,
+  "lr": 0.001,
+  "patience": 3,
+  "target_recall": 0.95,
+  "seed": 42,
+  "workers": 0,
+  "threads": 4,
+  "device": "cuda",
+  "device_used": "cuda",
+  "class_counts": [
+    1667,
+    197
+  ],
+  "class_weights": [
+    0.5590881823635273,
+    4.730964467005077
+  ],
+  "manifest_sha256": "655282b430be9d48bbc4f39fa41526b2fdea704f77c43968c52322dfd00b997f",
+  "initialization": "ImageNet1K_V1",
+  "torch_version": "2.14.0+cu130",
+  "gpu_name": "NVIDIA GeForce RTX 4050 Laptop GPU"
+}
