@@ -11,3 +11,10 @@
 !artifacts/run-001/best.onnx
 !artifacts/run-001/best.json
 **/__pycache__
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache

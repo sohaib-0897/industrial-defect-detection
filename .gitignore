@@ -6,6 +6,15 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .env
+.env.*
+*.pem
+*.key
+*.tmp
+*.temp
+*.bak
+*.part
+Thumbs.db
+.DS_Store
 data/
 artifacts/**
 !artifacts/.gitkeep

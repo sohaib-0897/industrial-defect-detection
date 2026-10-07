@@ -15,7 +15,7 @@
       "defect_probability": 0.020715096965432167,
       "model_version": "run-001",
       "decision_threshold": 0.1374264806509018,
-      "inference_time_ms": 212.069
+      "inference_time_ms": 3525.822
     },
     {
       "sample": "10021.png",
@@ -25,7 +25,7 @@
       "defect_probability": 0.9999997615814209,
       "model_version": "run-001",
       "decision_threshold": 0.1374264806509018,
-      "inference_time_ms": 149.493
+      "inference_time_ms": 253.076
     }
   ],
   "corrupted_image_status": 422

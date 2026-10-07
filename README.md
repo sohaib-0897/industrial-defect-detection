@@ -1,6 +1,6 @@
 # Manufacturing surface-defect classification
 
-The assessment specification stated that a dataset would be provided, but no dataset was included in the materials available to me. I contacted the recruitment team requesting access but did not receive the dataset within the submission window. To demonstrate the complete solution, I used the publicly available Kolektor Surface-Defect Dataset 2 (KSDD2), a real industrial surface-inspection dataset. The training and inference pipeline is dataset-agnostic and can be retrained on the intended assessment dataset without architectural changes.
+The assessment specification stated that a dataset would be provided, but no dataset was included in the supplied materials. After requesting access and not receiving it within the submission window, the publicly available Kolektor Surface-Defect Dataset 2 (KSDD2) was used to demonstrate the complete pipeline. The training and inference code is dataset-agnostic and can be retrained on the intended dataset.
 
 Classify an inspection image as **normal** (0, no visible defect) or **defective** (1, visible defect). Defective is the positive class everywhere. This submission includes a trained transfer-learning model, audited splits, generated evaluation evidence, FastAPI inference, verified ONNX export, and CPU measurements. Synthetic fixtures are used only for software tests; they contribute no assessment metrics below.
 
@@ -66,10 +66,10 @@ One final test evaluation after checkpoint and threshold selection:
 
 | Metric (defective positive) | Measured |
 |---|---:|
-| Accuracy | 95.7171% |
-| Precision | 77.2358% |
-| Recall | 86.3636% |
-| F1 | 81.5451% |
+| Accuracy | 95.72% |
+| Precision | 77.24% |
+| Recall | 86.36% |
+| F1 | 81.55% |
 | True negatives / false positives | 866 / 28 |
 | False negatives / true positives | 15 / 95 |
 | Support | 894 normal, 110 defective |
@@ -156,6 +156,8 @@ FastAPI validates multipart bodies before parsing and limits image uploads to 8 
 Python 3.12. CPU deployment measurements used Windows-11-10.0.26200-SP0, Intel64 Family 6 Model 186 Stepping 2, GenuineIntel (Intel Core i5-13420H), PyTorch 2.14.0+cpu. Training used NVIDIA GeForce RTX 4050 Laptop GPU with PyTorch 2.14.0+cu130. The CUDA wheel step follows [PyTorch's official installation index](https://pytorch.org/get-started/locally/); omit it and use `--device cpu` on a CPU-only machine. Run in the repository root (PowerShell):
 
 ```powershell
+git clone https://github.com/sohaib-0897/industrial-defect-detection.git
+cd industrial-defect-detection
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements-dev.txt -c constraints.txt
@@ -172,6 +174,8 @@ python -m scripts.check_api --checkpoint artifacts/reproduced/best.pt --sample d
 ```
 
 Choose a fresh run directory; training rejects existing results and evaluation refuses overwriting the final test report. The locally completed submission checkpoint is `artifacts/run-001/best.pt`. Raw images, ZIPs, caches and large model artifacts are ignored in Git. Reproduction generates the checkpoint; no artifact/release remote is configured. Download/extraction alone requires roughly 2 GiB; CPU training requires additional memory and takes substantially longer than GPU training. For a different supplied dataset, use the generic `src.analyze_data` CSV/folder audit and the same training/inference architecture; KSDD2 uses its dedicated official-split adapter.
+
+For a fresh clone, the commands above generate `artifacts/reproduced/best.pt`; use that path for API startup, and `artifacts/reproduced/best.onnx` for ONNX. To build the Docker image, copy `best.pt`, `best.onnx` and `best.json` into `artifacts/run-001/`, the image's documented checkpoint directory. The original submission machine already has these files. Trained weights are deliberately excluded from Git; the API cannot make predictions until a checkpoint has been reproduced.
 
 Start the local submission API:
 
@@ -197,8 +201,8 @@ Export uses opset 17 and a dynamic batch axis. ONNX checker and Runtime verify r
 
 | Backend | Median | p95 |
 |---|---:|---:|
-| PyTorch CPU | 492.795 ms | 585.150 ms |
-| ONNX Runtime CPU | 310.008 ms | 416.862 ms |
+| PyTorch CPU | 492.79 ms | 585.15 ms |
+| ONNX Runtime CPU | 310.01 ms | 416.86 ms |
 
 Batch size 1, two CPU threads, 10 warmups, 50 timed runs. Scope: RGB preprocessing + model + threshold; excludes decoding, HTTP and startup. Results describe this laptop and its load, not production throughput. [Raw benchmark environment and results](reports/ksdd2/benchmark.json).
 
@@ -216,6 +220,8 @@ python -m ruff format --check .
 ```
 
 Docker uses CPU wheels, a non-root user, read-only Compose filesystem and readiness health check. Only required model artifacts enter the build context; data and training caches stay outside the image. [Executed verification and exact Docker status](docs/verification.md). Tests cover preprocessing, mask-derived classes, official test preservation, threshold boundaries, model outputs, API readiness, invalid/oversized/corrupt uploads and ONNX metadata/parity. Separate live HTTP checks exercise real normal/defective images through both backends. Synthetic unit fixtures test software behavior only.
+
+Recorded verification: **19 tests passed**, **Ruff lint and format passed**, **ONNX parity passed**, and **Docker build/startup and real prediction checks passed**. On a fresh clone without the dataset, the real-data manifest test is skipped; download/audit the dataset to run the complete suite.
 
 ## Limits and next steps
 

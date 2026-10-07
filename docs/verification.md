@@ -14,7 +14,7 @@ This supersedes the historical synthetic-only report. Evidence is under [reports
 | PyTorch inference / real HTTP | Health 200; real normal and defective requests 200 with expected classes; corrupted image 422 |
 | ONNX export / inference | Checker and random/real-sample parity passed; probabilities/classes agree; live HTTP checks passed |
 | CPU benchmark | Batch 1, 2 threads, 10 warmups, 50 timed runs; medians 492.795 ms PyTorch / 310.008 ms ONNX |
-| pytest | 19 passed, 0 failures, 0 errors, 0 skipped; 92.111 seconds |
+| pytest | 19 passed, 0 failures, 0 errors, 0 skipped; 118.607 seconds |
 | Ruff lint / format check | Both passed; machine-readable command outputs committed |
 | Docker Compose configuration / build | Both passed; CPU inference image built locally |
 | Container startup / real uploads | Health 200; normal and defective prediction requests 200; corrupted image 422 |
@@ -35,6 +35,6 @@ The complete training/evaluation pipeline ran on the local submission directory.
 
 Pytest emitted three upstream deprecation warnings (TestClient and legacy ONNX export); no checks failed. The CPU deployment image has a clean `pip check`. Training CUDA wheels were installed in an isolated ignored environment rather than replacing the global CPU runtime.
 
-No Git remote or artifact release destination is configured, so there is no authorized destination to push commits or model weights. The full checkpoint and ONNX model remain available locally under `artifacts/run-001/`; README gives exact reproduction steps. Synthetic results remain clearly labeled only in [the historical software smoke archive](smoke_verification.md).
+The public repository is [industrial-defect-detection](https://github.com/sohaib-0897/industrial-defect-detection), with origin configured to its HTTPS Git URL and the existing history preserved on main. No model release artifact is configured: checkpoint and ONNX files remain local under `artifacts/run-001/`, with exact reproduction steps in README. Synthetic results remain clearly labeled only in [the historical software smoke archive](smoke_verification.md).
 
 The measured validation recall target did not fully generalize to test data. Test review triggered no retraining, augmentation adjustment or threshold change. Independent factory batches and a new holdout are required before further model selection or production acceptance.

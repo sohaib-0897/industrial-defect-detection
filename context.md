@@ -1,6 +1,6 @@
 # Project handoff
 
-Workspace: `C:/Users/Sohaib/Desktop/SparkAI`.
+Repository: https://github.com/sohaib-0897/industrial-defect-detection. Run commands from the cloned repository root.
 
 The assessment dataset was not provided. The user authorized the official public KSDD2 substitute. Real data now exists locally under ignored `data/KolektorSDD2/`; the official ZIP is ignored too. Dataset-derived figures are CC BY-NC-SA 4.0 with attribution in README.
 
@@ -10,4 +10,4 @@ The selected ImageNet ResNet18 uses full-frame 224-wide by 640-high letterboxing
 
 The final checkpoint and verified ONNX files are ignored under `artifacts/run-001/`. Small generated evidence is committed under `reports/ksdd2/`. CPU medians (two threads, 10 warmups, 50 runs, preprocessing included) are PyTorch 492.795 ms and ONNX 310.008 ms. Both live HTTP backends passed normal/defective requests and corrupted-image rejection. Error findings describe visually inspected real images, not causal explanations.
 
-Use README for exact reproduction and API commands, `docs/verification.md` for executed checks and container status, and `docs/demo_script.md` for recording. Historical synthetic measurements are isolated in `docs/smoke_verification.md`; they are software smoke evidence only. GPU training used an ignored isolated CUDA environment; global CPU PyTorch remains available for inference. No remote or model artifact release mechanism is configured.
+Use README for exact reproduction and API commands, `docs/verification.md` for executed checks and container status, and `docs/demo_script.md` for recording. Historical synthetic measurements are isolated in `docs/smoke_verification.md`; they are software smoke evidence only. GPU training used an ignored isolated CUDA environment; global CPU PyTorch remains available for inference. Origin points to the public GitHub repository; model weights are reproduced locally, with no release artifact configured.
