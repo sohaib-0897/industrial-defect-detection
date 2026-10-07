@@ -1,0 +1,13 @@
+{
+  "scope": "Post-evaluation descriptive statistics from stored official-test predictions only",
+  "positive_class": "defective",
+  "prediction_file": "reports/ksdd2/test_predictions.json",
+  "prediction_sha256": "1e12268361f537758a1e6a24a879405569cf2eb3693a1676a7c1f11605214adb",
+  "sample_count": 1004,
+  "positive_support": 110,
+  "average_precision": 0.8955411602866457,
+  "roc_auc": 0.9257270693512305,
+  "method": "scikit-learn average_precision_score (stepwise PR summary, not trapezoidal PR-AUC) and roc_auc_score",
+  "confidence_intervals": "Not reported; independent product/session sampling is not established",
+  "selection_effect": "None: no inference, retraining, threshold selection or primary-result modification"
+}

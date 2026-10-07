@@ -14,7 +14,7 @@ This supersedes the historical synthetic-only report. Evidence is under [reports
 | PyTorch inference / real HTTP | Health 200; real normal and defective requests 200 with expected classes; corrupted image 422 |
 | ONNX export / inference | Checker and random/real-sample parity passed; probabilities/classes agree; live HTTP checks passed |
 | CPU benchmark | Batch 1, 2 threads, 10 warmups, 50 timed runs; medians 492.795 ms PyTorch / 310.008 ms ONNX |
-| pytest | 19 passed, 0 failures, 0 errors, 0 skipped; 118.607 seconds |
+| pytest | 21 passed, 0 failures, 0 errors, 0 skipped; 70.274 seconds |
 | Ruff lint / format check | Both passed; machine-readable command outputs committed |
 | Docker Compose configuration / build | Both passed; CPU inference image built locally |
 | Container startup / real uploads | Health 200; normal and defective prediction requests 200; corrupted image 422 |

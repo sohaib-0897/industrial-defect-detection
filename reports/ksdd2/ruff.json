@@ -7,6 +7,6 @@
   {
     "command": "python -m ruff format --check .",
     "exit_code": 0,
-    "output": "45 files already formatted"
+    "output": "47 files already formatted"
   }
 ]
