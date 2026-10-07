@@ -1,0 +1,53 @@
+{
+  "backend": "onnx",
+  "health_status": 200,
+  "health": {
+    "status": "ok",
+    "backend": "onnx",
+    "model_version": "run-001"
+  },
+  "prediction_status": 200,
+  "prediction": {
+    "predicted_class": "normal",
+    "confidence": 0.9792849030345678,
+    "defect_probability": 0.020715096965432167,
+    "model_version": "run-001",
+    "decision_threshold": 0.1374264806509018,
+    "inference_time_ms": 466.851
+  },
+  "malformed_image_status": 422,
+  "transport": "real HTTP / uvicorn",
+  "sample": "data\\KolektorSDD2\\train\\10000.png",
+  "predictions": [
+    {
+      "sample": "data\\KolektorSDD2\\train\\10000.png",
+      "status": 200,
+      "predicted_class": "normal",
+      "confidence": 0.9792849030345678,
+      "defect_probability": 0.020715096965432167,
+      "model_version": "run-001",
+      "decision_threshold": 0.1374264806509018,
+      "inference_time_ms": 466.851
+    },
+    {
+      "sample": "data\\KolektorSDD2\\train\\10021.png",
+      "status": 200,
+      "predicted_class": "defective",
+      "confidence": 0.9999997615814209,
+      "defect_probability": 0.9999997615814209,
+      "model_version": "run-001",
+      "decision_threshold": 0.1374264806509018,
+      "inference_time_ms": 231.535
+    },
+    {
+      "sample": "data\\KolektorSDD2\\train\\10045.png",
+      "status": 200,
+      "predicted_class": "defective",
+      "confidence": 0.19357874989509583,
+      "defect_probability": 0.19357874989509583,
+      "model_version": "run-001",
+      "decision_threshold": 0.1374264806509018,
+      "inference_time_ms": 236.648
+    }
+  ]
+}

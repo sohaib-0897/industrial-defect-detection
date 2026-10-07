@@ -1,0 +1,76 @@
+{
+  "architecture": "resnet18",
+  "class_names": [
+    "normal",
+    "defective"
+  ],
+  "preprocessing": "letterbox224x640-imagenet-v2",
+  "threshold": 0.1374264806509018,
+  "model_version": "run-001",
+  "checkpoint_sha256": "c88759132e2606edbd849fe7b694be0548541decdf027b3e91257caa791cc412",
+  "onnx_sha256": "41d1bd4e15c83d859e2797eb464bcdc6a89af1f9fe24540e4b9781b906db0ba6",
+  "parity_max_abs_logit_error": 3.337860107421875e-06,
+  "parity_inputs": 5,
+  "sample_images": [
+    "data\\KolektorSDD2\\train\\10000.png",
+    "data\\KolektorSDD2\\train\\10021.png",
+    "data\\KolektorSDD2\\train\\10045.png"
+  ],
+  "probability_and_class_parity": [
+    {
+      "pytorch_probabilities": [
+        0.36624303460121155
+      ],
+      "onnx_probabilities": [
+        0.3662434220314026
+      ],
+      "classes_agree": true,
+      "max_abs_probability_error": 3.8743019104003906e-07
+    },
+    {
+      "pytorch_probabilities": [
+        0.5434976816177368,
+        0.7295323014259338
+      ],
+      "onnx_probabilities": [
+        0.543498158454895,
+        0.7295325398445129
+      ],
+      "classes_agree": true,
+      "max_abs_probability_error": 4.76837158203125e-07
+    },
+    {
+      "pytorch_probabilities": [
+        0.02071509137749672
+      ],
+      "onnx_probabilities": [
+        0.020715096965432167
+      ],
+      "classes_agree": true,
+      "max_abs_probability_error": 5.587935447692871e-09
+    },
+    {
+      "pytorch_probabilities": [
+        0.9999997615814209
+      ],
+      "onnx_probabilities": [
+        0.9999997615814209
+      ],
+      "classes_agree": true,
+      "max_abs_probability_error": 0.0
+    },
+    {
+      "pytorch_probabilities": [
+        0.19357851147651672
+      ],
+      "onnx_probabilities": [
+        0.19357873499393463
+      ],
+      "classes_agree": true,
+      "max_abs_probability_error": 2.2351741790771484e-07
+    }
+  ],
+  "opset": 17,
+  "atol": 1e-05,
+  "rtol": 0.0001
+}

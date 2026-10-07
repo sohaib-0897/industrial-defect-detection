@@ -61,8 +61,10 @@ def check(
                     "backend": backend,
                     "health_status": health.status_code,
                     "health": health.json(),
-                    "prediction_status": result.status_code,
-                    "prediction": result.json(),
+                    "prediction_status": predictions[0]["status"],
+                    "prediction": {
+                        key: value for key, value in predictions[0].items() if key not in {"sample", "status"}
+                    },
                     "malformed_image_status": invalid.status_code,
                     "transport": "real HTTP / uvicorn",
                     "sample": str(sample),

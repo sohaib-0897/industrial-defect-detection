@@ -1,0 +1,24 @@
+{
+  "platform": "Windows-11-10.0.26200-SP0",
+  "processor": "Intel64 Family 6 Model 186 Stepping 2, GenuineIntel",
+  "torch": "2.14.0+cpu",
+  "onnxruntime": "1.30.0",
+  "threads": 2,
+  "batch_size": 1,
+  "repeats": 50,
+  "warmup": 10,
+  "scope": "RGB preprocessing + model + threshold; excludes decoding, HTTP and startup",
+  "sample": "data\\KolektorSDD2\\train\\10000.png",
+  "backends": {
+    "pytorch": {
+      "mean_ms": 512.3800879903138,
+      "median_ms": 492.7948499680497,
+      "p95_ms": 585.1498099567834
+    },
+    "onnx": {
+      "mean_ms": 326.51899399934337,
+      "median_ms": 310.0076499977149,
+      "p95_ms": 416.862124990439
+    }
+  }
+}
